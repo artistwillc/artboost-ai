@@ -2392,11 +2392,75 @@ Keep the response clean, visually appealing, and ready to copy.
         },
       ],
     });
- 
-    res.json({
-      result: response.output_text,
-      imageUrl: hostedImageUrl,
-    });
+
+let finalOutput = response.output_text;
+
+if (platform === "Instagram") {
+  finalOutput = finalOutput.replace(
+    /https?:\/\/[^\s]+/gi,
+    ""
+  );
+
+  finalOutput = finalOutput.replace(
+    /www\.[^\s]+/gi,
+    ""
+  );
+
+  finalOutput = finalOutput.replace(
+    /[a-zA-Z0-9.-]+\.(com|net|org|shop|store)[^\s]*/gi,
+    ""
+  );
+
+  finalOutput = finalOutput.replace(
+    /click the link in bio/gi,
+    "Tap the link in bio"
+  );
+
+  finalOutput = finalOutput.replace(
+    /swipe up/gi,
+    "Tap the link in bio"
+  );
+
+  finalOutput = finalOutput.replace(
+  /grab yours here:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /shop now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /shop here:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /check it out here:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /visit our store:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /visit:?/gi,
+  ""
+);
+}
+
+res.json({
+  result: finalOutput,
+  imageUrl: hostedImageUrl,
+});
   } catch (err) {
     console.error("Generate error:", err);
     res.status(500).json({
