@@ -891,7 +891,6 @@ let facebookConnection = {
   connectedAt: null,
 };
 
-<<<<<<< HEAD
 async function saveFacebookConnection(tokenData) {
   const connectedAt = new Date().toISOString();
 
@@ -945,8 +944,6 @@ async function loadFacebookConnection() {
   console.log("Facebook saved connection loaded: true");
 }
  
-=======
->>>>>>> 0e525d1 (Fix scheduled Instagram publishing)
 app.get("/auth/facebook", (req, res) => {
  
   const APP_ID =
@@ -1195,13 +1192,11 @@ app.get("/auth/facebook/callback", async (req, res) => {
         );
  
     }
-<<<<<<< HEAD
  
     await saveFacebookConnection(tokenData);
  
     console.log("Facebook token received and save attempted");
  
-=======
 
     facebookConnection = {
 
@@ -1218,7 +1213,6 @@ app.get("/auth/facebook/callback", async (req, res) => {
 
     };
 
->>>>>>> 0e525d1 (Fix scheduled Instagram publishing)
     console.log(
       "Facebook Connected Successfully"
     );
@@ -1509,7 +1503,6 @@ app.post("/instagram/post", async (req, res) => {
 });
  
 // PASTE THE NEW ROUTE HERE
-<<<<<<< HEAD
 app.get("/facebook/test", (req, res) => {
   res.json({
     connected: facebookConnection.connected,
@@ -1531,7 +1524,6 @@ app.get("/x/credentials-check", (req, res) => {
   });
 });
  
-=======
 
 app.get("/facebook/test", (req, res) => {
 
@@ -1554,7 +1546,6 @@ app.get("/facebook/test", (req, res) => {
 
 });
 
->>>>>>> 0e525d1 (Fix scheduled Instagram publishing)
 app.get("/auth/pinterest/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
@@ -1950,6 +1941,90 @@ Tap the link in bio to learn more.
 
   if (publishData.error) {
     throw new Error(publishData.error.message || "Instagram publish failed");
+  }
+
+  return {
+    success: true,
+    platform: "instagram",
+    creationId: createContainerData.id,
+    result: publishData,
+  };
+}
+
+async function publishInstagramPost({
+  title,
+  description,
+  productLink,
+  imageUrl,
+}) {
+  const instagramUserId = process.env.INSTAGRAM_USER_ID;
+  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+  if (!instagramUserId || !accessToken) {
+    throw new Error("Instagram not configured");
+  }
+
+  if (!imageUrl) {
+    throw new Error("Instagram requires an imageUrl to publish.");
+  }
+
+  const message = `
+${title || ""}
+
+${description || ""}
+
+${productLink || ""}
+
+Tap the link in bio to learn more.
+`;
+
+  const createContainerResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        caption: message,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const createContainerData = await createContainerResponse.json();
+
+  if (createContainerData.error) {
+    throw new Error(
+      createContainerData.error.message ||
+      "Instagram container creation failed"
+    );
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 8000));
+
+  const publishResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        creation_id: createContainerData.id,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const publishData = await publishResponse.json();
+
+  if (publishData.error) {
+    throw new Error(
+      publishData.error.message ||
+      "Instagram publish failed"
+    );
   }
 
   return {
