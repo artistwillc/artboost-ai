@@ -2259,8 +2259,6 @@ Use only link-in-bio language.
 If any URL appears anywhere in an Instagram response, the response is invalid and must be regenerated before returning.
  
 TITLE:
- 
-TITLE:
 ALWAYS start the title with the word ARTBOOST:
 Create one strong ${platform}-optimized title.
  
@@ -2280,6 +2278,24 @@ ABSOLUTE RULES:
 - Never include "click here".
 - Never include "check it out here".
 - Never include any variation of a product link.
+
+For Instagram:
+
+The DESCRIPTION must contain zero links.
+
+Forbidden phrases:
+- Shop here
+- Shop now
+- Buy now
+- Get yours here
+- Check it out here
+- Visit
+- Visit our store
+- Click here
+- Link:
+- URL:
+
+If any of these phrases appear, regenerate the DESCRIPTION.
  
 Focus on:
 - The artwork
