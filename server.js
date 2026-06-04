@@ -3066,7 +3066,7 @@ app.listen(PORT, async () => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
-  console.log("LIVE SERVER VERSION: X DEBUG 1");
+  console.log("LIVE SERVER VERSION: SCHEDULER DEBUG 1");
   console.log(
     "Facebook saved connection loaded:",
     facebookConnection.connected
