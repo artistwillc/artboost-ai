@@ -2350,7 +2350,7 @@ Rules:
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
-  console.log("LIVE SERVER VERSION: FACEBOOK STATUS FIX 1");
+  console.log("LIVE SERVER VERSION: AI PROMPT FIX 1");
   await loadFacebookConnection();
 console.log("Facebook saved connection loaded:", facebookConnection.connected);
   console.log(
