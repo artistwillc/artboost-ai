@@ -891,6 +891,7 @@ let facebookConnection = {
   connectedAt: null,
 };
 
+<<<<<<< HEAD
 async function saveFacebookConnection(tokenData) {
   const connectedAt = new Date().toISOString();
 
@@ -944,6 +945,8 @@ async function loadFacebookConnection() {
   console.log("Facebook saved connection loaded: true");
 }
  
+=======
+>>>>>>> 0e525d1 (Fix scheduled Instagram publishing)
 app.get("/auth/facebook", (req, res) => {
  
   const APP_ID =
@@ -1192,11 +1195,30 @@ app.get("/auth/facebook/callback", async (req, res) => {
         );
  
     }
+<<<<<<< HEAD
  
     await saveFacebookConnection(tokenData);
  
     console.log("Facebook token received and save attempted");
  
+=======
+
+    facebookConnection = {
+
+      connected: true,
+
+      token:
+        tokenData.access_token,
+
+      expiresIn:
+        tokenData.expires_in,
+
+      connectedAt:
+        new Date().toISOString(),
+
+    };
+
+>>>>>>> 0e525d1 (Fix scheduled Instagram publishing)
     console.log(
       "Facebook Connected Successfully"
     );
@@ -1487,6 +1509,7 @@ app.post("/instagram/post", async (req, res) => {
 });
  
 // PASTE THE NEW ROUTE HERE
+<<<<<<< HEAD
 app.get("/facebook/test", (req, res) => {
   res.json({
     connected: facebookConnection.connected,
@@ -1508,6 +1531,30 @@ app.get("/x/credentials-check", (req, res) => {
   });
 });
  
+=======
+
+app.get("/facebook/test", (req, res) => {
+
+  res.json({
+
+    connected:
+      facebookConnection.connected,
+
+    hasToken:
+      Boolean(
+        facebookConnection.token
+      ),
+
+    readyForPages:false,
+
+    message:
+      "Facebook login works. Page publishing requires Meta Page permissions."
+
+  });
+
+});
+
+>>>>>>> 0e525d1 (Fix scheduled Instagram publishing)
 app.get("/auth/pinterest/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
@@ -2938,6 +2985,10 @@ app.listen(PORT, async () => {
 
   await loadFacebookConnection();
 
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
+  console.log("LIVE SERVER VERSION: X DEBUG 1");
   console.log(
     "Facebook saved connection loaded:",
     facebookConnection.connected
@@ -2963,3 +3014,4 @@ app.listen(PORT, async () => {
     }`
   );
 });
+
