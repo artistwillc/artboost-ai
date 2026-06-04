@@ -2344,6 +2344,9 @@ console.log(
   "raw platform =", campaign.platform,
   "normalized =", platform
 );
+      console.log("SCHEDULER DEBUG platform:", campaign.platform);
+console.log("SCHEDULER DEBUG id:", campaign.id);
+
 const platform = String(campaign.platform || "").toLowerCase();
 
 if (platform === "facebook") {
