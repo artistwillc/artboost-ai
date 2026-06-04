@@ -2259,7 +2259,6 @@ Use only link-in-bio language.
 If any URL appears anywhere in an Instagram response, the response is invalid and must be regenerated before returning.
  
 TITLE:
-ALWAYS start the title with the word ARTBOOST:
 Create one strong ${platform}-optimized title.
  
 Make it attention-grabbing, emotionally engaging, and platform appropriate.
@@ -2294,6 +2293,14 @@ Forbidden phrases:
 - Click here
 - Link:
 - URL:
+- Grab yours now
+- Grab yours today
+- Get yours now
+- Get yours today
+- Buy yours today
+- Order yours today
+- Tap here
+- Click now
 
 If any of these phrases appear, regenerate the DESCRIPTION.
  
@@ -2454,6 +2461,78 @@ finalOutput = finalOutput.replace(
 finalOutput = finalOutput.replace(
   /visit:?/gi,
   ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours today:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /get yours now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /get yours today:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /buy yours today:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /order yours today:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /tap here:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /click now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours now at/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours here at/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /get yours now at/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /shop now at/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /\bat\s+and\b/gi,
+  "and"
+);
+
+finalOutput = finalOutput.replace(/\s{2,}/g, " ");
+
+finalOutput = finalOutput.replace(
+  /shop now/gi,
+  "Tap the link in bio"
 );
 }
 
