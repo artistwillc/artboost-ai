@@ -891,55 +891,6 @@ let facebookConnection = {
   connectedAt: null,
 };
 
-async function saveFacebookConnection(tokenData) {
-  const connectedAt = new Date().toISOString();
-
-  const { error } = await supabase
-    .from("social_connections")
-    .upsert(
-      {
-        platform: "facebook",
-        connected: true,
-        access_token: tokenData.access_token,
-        expires_in: tokenData.expires_in || null,
-        connected_at: connectedAt,
-        updated_at: connectedAt,
-      },
-      { onConflict: "platform" }
-    );
-
-  if (error) {
-    console.log("Facebook token save failed:", error.message);
-  }
-
-  facebookConnection = {
-    connected: true,
-    token: tokenData.access_token,
-    expiresIn: tokenData.expires_in || null,
-    connectedAt,
-  };
-}
-
-async function loadFacebookConnection() {
-  const { data, error } = await supabase
-    .from("social_connections")
-    .select("*")
-    .eq("platform", "facebook")
-    .single();
-
-  if (error || !data?.access_token) {
-    console.log("No saved Facebook connection found.");
-    return;
-  }
-
-  facebookConnection = {
-    connected: Boolean(data.connected),
-    token: data.access_token,
-    expiresIn: data.expires_in,
-    connectedAt: data.connected_at,
-  };
-}
-
 app.get("/auth/facebook", (req, res) => {
 
   const APP_ID =
@@ -1187,7 +1138,20 @@ app.get("/auth/facebook/callback", async (req, res) => {
 
     }
 
-    await saveFacebookConnection(tokenData);
+    facebookConnection = {
+
+      connected: true,
+
+      token:
+        tokenData.access_token,
+
+      expiresIn:
+        tokenData.expires_in,
+
+      connectedAt:
+        new Date().toISOString(),
+
+    };
 
     console.log(
       "Facebook Connected Successfully"
@@ -1479,26 +1443,7 @@ app.post("/instagram/post", async (req, res) => {
 });
 
 // PASTE THE NEW ROUTE HERE
-app.get("/facebook/test", (req, res) => {
-  res.json({
-    connected: facebookConnection.connected,
-    connectedAt: facebookConnection.connectedAt || null,
-    hasToken: Boolean(facebookConnection.token),
-  });
-});
 
-app.get("/x/credentials-check", (req, res) => {
-  res.json({
-    connected: true,
-    hasClientId: Boolean(process.env.X_CLIENT_ID),
-    hasClientSecret: Boolean(process.env.X_CLIENT_SECRET),
-    hasApiKey: Boolean(process.env.X_API_KEY),
-    hasApiSecret: Boolean(process.env.X_API_SECRET),
-    hasAccessToken: Boolean(process.env.X_ACCESS_TOKEN),
-    hasAccessTokenSecret: Boolean(process.env.X_ACCESS_TOKEN_SECRET),
-    message: "X credentials check complete.",
-  });
-});
 app.get("/facebook/test", (req, res) => {
 
   res.json({
@@ -1745,6 +1690,90 @@ ${productLink || ""}
 
   return data;
 
+}
+
+async function publishInstagramPost({
+  title,
+  description,
+  productLink,
+  imageUrl,
+}) {
+  const instagramUserId = process.env.INSTAGRAM_USER_ID;
+  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+  if (!instagramUserId || !accessToken) {
+    throw new Error("Instagram not configured");
+  }
+
+  if (!imageUrl) {
+    throw new Error("Instagram requires an imageUrl to publish.");
+  }
+
+  const message = `
+${title || ""}
+
+${description || ""}
+
+${productLink || ""}
+
+Tap the link in bio to learn more.
+`;
+
+  const createContainerResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        caption: message,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const createContainerData = await createContainerResponse.json();
+
+  if (createContainerData.error) {
+    throw new Error(
+      createContainerData.error.message ||
+      "Instagram container creation failed"
+    );
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 8000));
+
+  const publishResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        creation_id: createContainerData.id,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const publishData = await publishResponse.json();
+
+  if (publishData.error) {
+    throw new Error(
+      publishData.error.message ||
+      "Instagram publish failed"
+    );
+  }
+
+  return {
+    success: true,
+    platform: "instagram",
+    creationId: createContainerData.id,
+    result: publishData,
+  };
 }
  
 app.post("/pinterest/create-pin", async (req, res) => {
@@ -2044,7 +2073,12 @@ async function runScheduledCampaigns() {
  
       let publishData = null;
 
-if (campaign.platform === "Facebook") {
+      console.log("SCHEDULER DEBUG platform:", campaign.platform);
+console.log("SCHEDULER DEBUG id:", campaign.id);
+
+const platform = String(campaign.platform || "").toLowerCase();
+
+if (platform === "facebook") {
   publishData = await publishFacebookPost({
     title: campaign.title,
     description: campaign.description,
@@ -2052,7 +2086,14 @@ if (campaign.platform === "Facebook") {
     imageUrl: campaign.image_url,
     pageId: campaign.page_id,
   });
-} else {
+} else if (platform === "instagram") {
+  publishData = await publishInstagramPost({
+    title: campaign.title,
+    description: campaign.description,
+    productLink: campaign.product_link,
+    imageUrl: campaign.image_url,
+  });
+} else if (platform === "pinterest") {
   publishData = await publishPinterestPin({
     boardId: campaign.board_id,
     title: campaign.title,
@@ -2060,6 +2101,8 @@ if (campaign.platform === "Facebook") {
     link: campaign.product_link,
     imageUrl: campaign.image_url,
   });
+} else {
+  throw new Error(`Unsupported scheduled platform: ${campaign.platform}`);
 }
  
       const repeatType = campaign.repeat_type || "one_time";
@@ -2324,12 +2367,10 @@ Rules:
   }
 });
  
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
-  console.log("LIVE SERVER VERSION: FACEBOOK STATUS FIX 1");
-  await loadFacebookConnection();
-console.log("Facebook saved connection loaded:", facebookConnection.connected);
+  console.log("LIVE SERVER VERSION: SCHEDULER DEBUG 1");
   console.log(
     `Stripe configured: ${process.env.STRIPE_SECRET_KEY ? "yes" : "no"}`
   );
@@ -2346,3 +2387,4 @@ console.log("Facebook saved connection loaded:", facebookConnection.connected);
     }`
   );
 });
+
