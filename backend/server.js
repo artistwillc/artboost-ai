@@ -1504,8 +1504,6 @@ app.get("/x/credentials-check", (req, res) => {
   });
 });
  
-});
- 
 app.get("/auth/pinterest/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
@@ -2105,6 +2103,9 @@ async function runScheduledCampaigns() {
         .eq("id", campaign.id);
  
       let publishData = null;
+
+      console.log("Scheduler Platform:", campaign.platform);
+console.log("Campaign ID:", campaign.id);
  
 const platform = String(campaign.platform || "").toLowerCase();
 
