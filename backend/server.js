@@ -1732,6 +1732,82 @@ ${productLink || ""}
   return data;
  
 }
+
+async function publishInstagramPost({
+  title,
+  description,
+  productLink,
+  imageUrl,
+}) {
+  const instagramUserId = process.env.INSTAGRAM_USER_ID;
+  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+  if (!instagramUserId || !accessToken) {
+    throw new Error("Instagram not configured");
+  }
+
+  if (!imageUrl) {
+    throw new Error("Instagram requires an imageUrl to publish.");
+  }
+
+  const message = `
+${title || ""}
+
+${description || ""}
+
+Tap the link in bio to learn more.
+`;
+
+  const createContainerResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        caption: message,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const createContainerData = await createContainerResponse.json();
+
+  if (createContainerData.error) {
+    throw new Error(createContainerData.error.message || "Instagram container creation failed");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 8000));
+
+  const publishResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        creation_id: createContainerData.id,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const publishData = await publishResponse.json();
+
+  if (publishData.error) {
+    throw new Error(publishData.error.message || "Instagram publish failed");
+  }
+
+  return {
+    success: true,
+    platform: "instagram",
+    creationId: createContainerData.id,
+    result: publishData,
+  };
+}
  
 app.post("/pinterest/create-pin", async (req, res) => {
   try {
@@ -2030,7 +2106,9 @@ async function runScheduledCampaigns() {
  
       let publishData = null;
  
-if (campaign.platform === "Facebook") {
+const platform = String(campaign.platform || "").toLowerCase();
+
+if (platform === "facebook") {
   publishData = await publishFacebookPost({
     title: campaign.title,
     description: campaign.description,
@@ -2038,7 +2116,14 @@ if (campaign.platform === "Facebook") {
     imageUrl: campaign.image_url,
     pageId: campaign.page_id,
   });
-} else {
+} else if (platform === "instagram") {
+  publishData = await publishInstagramPost({
+    title: campaign.title,
+    description: campaign.description,
+    productLink: campaign.product_link,
+    imageUrl: campaign.image_url,
+  });
+} else if (platform === "pinterest") {
   publishData = await publishPinterestPin({
     boardId: campaign.board_id,
     title: campaign.title,
@@ -2046,6 +2131,9 @@ if (campaign.platform === "Facebook") {
     link: campaign.product_link,
     imageUrl: campaign.image_url,
   });
+
+} else {
+  throw new Error(`Unsupported scheduled platform: ${campaign.platform}`);
 }
  
       const repeatType = campaign.repeat_type || "one_time";
