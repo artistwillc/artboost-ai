@@ -2260,6 +2260,8 @@ If any URL appears anywhere in an Instagram response, the response is invalid an
  
 TITLE:
  
+TITLE:
+ALWAYS start the title with the word ARTBOOST:
 Create one strong ${platform}-optimized title.
  
 Make it attention-grabbing, emotionally engaging, and platform appropriate.
