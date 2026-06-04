@@ -1503,24 +1503,6 @@ app.get("/x/credentials-check", (req, res) => {
     message: "X credentials check complete.",
   });
 });
-app.get("/facebook/test", (req, res) => {
- 
-  res.json({
- 
-    connected:
-      facebookConnection.connected,
- 
-    hasToken:
-      Boolean(
-        facebookConnection.token
-      ),
- 
-    readyForPages:false,
- 
-    message:
-      "Facebook login works. Page publishing requires Meta Page permissions."
- 
-  });
  
 });
  
@@ -2550,6 +2532,16 @@ finalOutput = finalOutput.replace(
 
 finalOutput = finalOutput.replace(
   /\s+and\s+burn\s+rubber\s+in\s+style\.?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /check it out\s*👉?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /check it out/gi,
   ""
 );
 
