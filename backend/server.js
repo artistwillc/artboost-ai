@@ -2353,7 +2353,7 @@ Valid examples:
 
 Tap the link in bio to grab yours today.
 
-Hit the link in bio and claim yours now.
+Tap the link in bio to claim yours now.
 
 Get yours today through the link in bio.
  
@@ -2541,6 +2541,16 @@ finalOutput = finalOutput.replace(
 finalOutput = finalOutput.replace(
   /shop now/gi,
   "Tap the link in bio"
+);
+
+finalOutput = finalOutput.replace(
+  /(grab|snag|get|buy|order)\s+yours?\s+(now|today|here)\s*(at)?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /\s+and\s+burn\s+rubber\s+in\s+style\.?/gi,
+  ""
 );
 
 finalOutput = finalOutput.replace(/\s{2,}/g, " ");
