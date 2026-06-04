@@ -2313,21 +2313,31 @@ CTA:
 Write one clear call-to-action for ${platform}.
  
 Instagram:
- 
+
 Use only link-in-bio language.
- 
-Examples:
- 
+
+NEVER include:
+- URLs
+- Product links
+- Website addresses
+- Shopify links
+- Domain names
+- https://
+- http://
+- www.
+
+Valid examples:
+
 Tap the link in bio to grab yours today.
- 
-Get yours now through the link in bio.
- 
-Hit the link in bio and claim yours.
+
+Hit the link in bio and claim yours now.
+
+Get yours today through the link in bio.
  
 Facebook:
- 
+
 May include the product link.
- 
+
 Pinterest:
  
 May include the product link.
@@ -2350,6 +2360,10 @@ Before returning the response:
 8. Verify Instagram CTA uses link-in-bio wording.
 9. Verify DESCRIPTION never contains a product link.
 10. If any rule fails, regenerate the response before returning it.
+11. Verify Instagram CTA contains no URL.
+12. Verify Instagram CTA contains no domain name.
+13. Verify Instagram CTA contains no product link.
+14. If Instagram CTA contains a URL, regenerate the response.
  
 Keep the response clean, visually appealing, and ready to copy.
 `,
