@@ -222,9 +222,15 @@ export default function HomeScreen() {
       getSectionContent("TITLE", parsed) || `${selectedPlatform} Campaign`;
 
     const description =
-      getSectionContent("DESCRIPTION", parsed) || generatedText;
+  getSectionContent("DESCRIPTION", parsed) || generatedText;
 
-    return {
+const hashtags =
+  getSectionContent("HASHTAGS", parsed);
+
+const cta =
+  getSectionContent("CTA", parsed);
+
+return {
       id: Date.now().toString(),
       image,
       imageUrl: imageUrlFromBackend,
@@ -235,6 +241,8 @@ export default function HomeScreen() {
       title,
       pinterestTitle: title,
       pinterestDescription: description,
+      hashtags,
+      cta,
       createdAt: new Date().toLocaleString(),
     };
   };

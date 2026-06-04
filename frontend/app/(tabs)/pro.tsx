@@ -33,6 +33,8 @@ export default function ProScreen() {
   const [imageUrl, setImageUrl] = useState("");
   const [productLink, setProductLink] = useState("");
   const [previewImage, setPreviewImage] = useState("");
+  const [hashtags, setHashtags] = useState("");
+  const [cta, setCta] = useState("");
  
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
   const [repostPreset, setRepostPreset] = useState<
@@ -309,10 +311,42 @@ const applyRepostPreset = (
       const campaign = JSON.parse(saved);
  
       setTitle(campaign.pinterestTitle || campaign.title || "");
-      setDescription(campaign.pinterestDescription || campaign.result || "");
-      setProductLink(cleanUrl(campaign.productLink || ""));
-      setPreviewImage(campaign.image || "");
-      setImageUrl(campaign.imageUrl || "");
+      let finalDescription =
+  campaign.pinterestDescription || campaign.result || "";
+
+let finalHashtags = campaign.hashtags || "";
+let finalCta = campaign.cta || "";
+
+if (campaign.platform === "Instagram" || selectedPlatform === "Instagram") {
+  finalDescription = finalDescription
+  .replace(/https?:\/\/\S+/gi, "")
+  .replace(/www\.\S+/gi, "")
+  .replace(/Shop here:?/gi, "")
+  .replace(/Shop now:?/gi, "")
+  .replace(/Grab yours now:?/gi, "")
+  .replace(/Grab yours here:?/gi, "")
+  .replace(/Check it out here:?/gi, "")
+  .replace(/Visit our store:?/gi, "")
+  .replace(/Visit:?/gi, "")
+  .trim();
+
+  finalCta = finalCta
+  .replace(/https?:\/\/\S+/gi, "")
+  .replace(/www\.\S+/gi, "")
+  .replace(/visit\s*/gi, "")
+  .replace(/click the link in bio/gi, "Tap the link in bio")
+  .replace(/\s{2,}/g, " ")
+  .trim();
+}
+
+finalHashtags = finalHashtags.replace(/\s+#/g, "\n#");
+
+setDescription(finalDescription);
+setHashtags(finalHashtags);
+setCta(finalCta);
+setProductLink(cleanUrl(campaign.productLink || ""));
+setPreviewImage(campaign.image || "");
+setImageUrl(campaign.imageUrl || "");
     } catch (err) {
       console.log("Failed loading campaign:", err);
     }
@@ -360,7 +394,7 @@ const applyRepostPreset = (
         return;
       }
  
-      if (selectedPlatform === "Pinterest" && !selectedBoard) {
+      if (selectedPlatform?.toLowerCase() === "pinterest" && !selectedBoard) {
   Alert.alert("Missing Board", "Please select a Pinterest board.");
   return;
 }
@@ -597,13 +631,13 @@ console.log("Facebook Pages Response:", data);
         return;
       }
  
-      if (!selectedBoard) {
-        Alert.alert("Missing Board", "Please select a Pinterest board.");
-        return;
-      }
+      if (selectedPlatform?.toLowerCase() === "pinterest" && !selectedBoard) {
+  Alert.alert("Missing Board", "Please select a Pinterest board.");
+  return;
+}
  
       if (!imageUrl) {
-        Alert.alert("Missing Image URL", "Pinterest requires a public image URL.");
+        Alert.alert("Missing Image URL", "This platform requires a public image URL.");
         return;
       }
  
@@ -678,7 +712,13 @@ const createFacebookPost = async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-  message: `${title}\n\n${description}\n\n${productLink}`,
+  message: `${title}
+
+${description}
+
+${cta}
+
+${hashtags}`,
   imageUrl,
   pageId: selectedFacebookPage,
 }),
@@ -739,7 +779,13 @@ const createInstagramPost = async () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: `${title}\n\n${description}\n\n${productLink}`,
+          message: `${title}
+
+${description}
+
+${cta}
+
+${hashtags}`,
           imageUrl,
         }),
       }
@@ -1389,6 +1435,24 @@ Pinterest
           value={description}
           onChangeText={setDescription}
         />
+
+        <Text style={styles.label}>CTA</Text>
+
+<TextInput
+  style={[styles.input, styles.textarea]}
+  multiline
+  value={cta}
+  onChangeText={setCta}
+/>
+
+<Text style={styles.label}>Hashtags</Text>
+
+<TextInput
+  style={[styles.input, styles.textarea]}
+  multiline
+  value={hashtags}
+  onChangeText={setHashtags}
+/>
  
         <Text style={styles.label}>Public Image URL</Text>
  
