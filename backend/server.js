@@ -2528,12 +2528,22 @@ finalOutput = finalOutput.replace(
   "and"
 );
 
-finalOutput = finalOutput.replace(/\s{2,}/g, " ");
+finalOutput = finalOutput.replace(
+  /\s+at\s*$/gim,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /!\s*at\b/gi,
+  "!"
+);
 
 finalOutput = finalOutput.replace(
   /shop now/gi,
   "Tap the link in bio"
 );
+
+finalOutput = finalOutput.replace(/\s{2,}/g, " ");
 }
 
 res.json({
