@@ -147,10 +147,24 @@ export default function HomeScreen() {
     try {
       setAuthLoading(true);
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: authEmail.trim(),
-        password: authPassword,
-      });
+      try {
+  const result = await supabase.auth.signInWithPassword({
+    email: authEmail.trim(),
+    password: authPassword,
+  });
+
+  console.log("LOGIN RESULT:", JSON.stringify(result, null, 2));
+
+  if (result.error) {
+    Alert.alert("Login Error", result.error.message);
+    return;
+  }
+
+  Alert.alert("Logged In", "Welcome back to ArtBoost AI.");
+} catch (err) {
+  console.log("LOGIN EXCEPTION:", err);
+  Alert.alert("Login Error", JSON.stringify(err));
+}
 
       if (error) {
         Alert.alert("Login Error", error.message);
