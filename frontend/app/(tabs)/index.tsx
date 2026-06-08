@@ -40,6 +40,17 @@ const REPEAT_OPTIONS = [
 ];
 
 export default function HomeScreen() {
+
+  useEffect(() => {
+    fetch("https://www.google.com")
+      .then((r) => console.log("GOOGLE STATUS", r.status))
+      .catch((e) => console.log("GOOGLE ERROR", e));
+
+    fetch("https://ganediqbiawagnefbiop.supabase.co/auth/v1/settings")
+      .then((r) => console.log("SUPABASE STATUS", r.status))
+      .catch((e) => console.log("SUPABASE ERROR", e));
+  }, []);
+
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -222,9 +233,15 @@ export default function HomeScreen() {
       getSectionContent("TITLE", parsed) || `${selectedPlatform} Campaign`;
 
     const description =
-      getSectionContent("DESCRIPTION", parsed) || generatedText;
+  getSectionContent("DESCRIPTION", parsed) || generatedText;
 
-    return {
+const hashtags =
+  getSectionContent("HASHTAGS", parsed);
+
+const cta =
+  getSectionContent("CTA", parsed);
+
+return {
       id: Date.now().toString(),
       image,
       imageUrl: imageUrlFromBackend,
@@ -235,6 +252,8 @@ export default function HomeScreen() {
       title,
       pinterestTitle: title,
       pinterestDescription: description,
+      hashtags,
+      cta,
       createdAt: new Date().toLocaleString(),
     };
   };
