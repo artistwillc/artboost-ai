@@ -981,7 +981,9 @@ app.get("/x/status", (req, res) => {
     hasAccessTokenSecret: !!process.env.X_ACCESS_TOKEN_SECRET,
     message: "X credentials check complete.",
 postTestRouteAdded: true,
-  }); 
+  });
+});
+
 app.post("/x/post", async (req, res) => {
   try {
     const { message, imageUrl } = req.body;
