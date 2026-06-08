@@ -890,10 +890,17 @@ let facebookConnection = {
   expiresIn: null,
   connectedAt: null,
 };
- 
+
 async function saveFacebookConnection(tokenData) {
   const connectedAt = new Date().toISOString();
- 
+
+  facebookConnection = {
+    connected: true,
+    token: tokenData.access_token,
+    expiresIn: tokenData.expires_in || null,
+    connectedAt,
+  };
+
   const { error } = await supabase
     .from("social_connections")
     .upsert(
@@ -907,39 +914,34 @@ async function saveFacebookConnection(tokenData) {
       },
       { onConflict: "platform" }
     );
- 
+
   if (error) {
-  console.log("Facebook token save failed:", error);
-} else {
-  console.log("Facebook token saved to Supabase");
+    console.log("Facebook token save failed:", error.message);
+  } else {
+    console.log("Facebook token saved to Supabase");
+  }
 }
- 
-  facebookConnection = {
-    connected: true,
-    token: tokenData.access_token,
-    expiresIn: tokenData.expires_in || null,
-    connectedAt,
-  };
-}
- 
+
 async function loadFacebookConnection() {
   const { data, error } = await supabase
     .from("social_connections")
     .select("*")
     .eq("platform", "facebook")
-    .single();
- 
+    .maybeSingle();
+
   if (error || !data?.access_token) {
     console.log("No saved Facebook connection found.");
     return;
   }
- 
+
   facebookConnection = {
-    connected: Boolean(data.connected),
+    connected: true,
     token: data.access_token,
-    expiresIn: data.expires_in,
-    connectedAt: data.connected_at,
+    expiresIn: data.expires_in || null,
+    connectedAt: data.connected_at || null,
   };
+
+  console.log("Facebook saved connection loaded: true");
 }
  
 app.get("/auth/facebook", (req, res) => {
@@ -2647,13 +2649,23 @@ Rules:
 });
  
 app.listen(PORT, async () => {
+
   console.log(`Server running on port ${PORT}`);
   console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
-  console.log("LIVE SERVER VERSION: AI PROMPT FIX 1");
+
   await loadFacebookConnection();
-console.log("Facebook saved connection loaded:", facebookConnection.connected);
+
   console.log(
-    `Stripe configured: ${process.env.STRIPE_SECRET_KEY ? "yes" : "no"}`
+    "Facebook saved connection loaded:",
+    facebookConnection.connected
+  );
+
+  console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
+
+  console.log(
+    `Stripe configured: ${
+      process.env.STRIPE_SECRET_KEY ? "yes" : "no"
+    }`
   );
   console.log(
     `Stripe webhook configured: ${
