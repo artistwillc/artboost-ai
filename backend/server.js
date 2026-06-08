@@ -1662,75 +1662,64 @@ async function publishPinterestPin({
 }
  
 async function publishFacebookPost({
- 
   title,
   description,
   productLink,
   imageUrl,
   pageId,
- 
 }) {
- 
   if (!facebookConnection.token) {
- 
-    throw new Error(
-      "Facebook not connected"
-    );
- 
+    throw new Error("Facebook not connected");
   }
- 
-  const message = `
- 
-${title}
- 
-${description}
- 
-${productLink || ""}
- 
-`;
- 
-  const response =
-  await fetch(
- 
-`https://graph.facebook.com/v23.0/${pageId}/photos`,
- 
-    {
- 
-      method:"POST",
- 
-      headers:{
-        "Content-Type":
-        "application/json"
-      },
- 
-      body:JSON.stringify({
- 
-        url:imageUrl,
- 
-        caption:message,
- 
-        access_token:
-        facebookConnection.token,
- 
-      }),
- 
-    }
- 
+
+  if (!pageId) {
+    throw new Error("Missing Facebook pageId for scheduled post");
+  }
+
+  const pagesResponse = await fetch(
+    `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
   );
- 
-  const data =
-  await response.json();
- 
-  if (data.error) {
- 
-    throw new Error(
-      data.error.message
-    );
- 
+
+  const pagesData = await pagesResponse.json();
+
+  if (!pagesData.data || !pagesData.data.length) {
+    throw new Error("No Facebook Pages found");
   }
- 
+
+  const page = pagesData.data.find((p) => p.id === pageId);
+
+  if (!page) {
+    throw new Error("Selected Facebook Page not found");
+  }
+
+  const message = `${title}
+
+${description}
+
+${productLink || ""}`;
+
+  const response = await fetch(
+    `https://graph.facebook.com/v23.0/${page.id}/photos`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: imageUrl,
+        caption: message,
+        access_token: page.access_token,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(data.error.message);
+  }
+
   return data;
- 
 }
  
 app.post("/pinterest/create-pin", async (req, res) => {
