@@ -41,16 +41,6 @@ const REPEAT_OPTIONS = [
 
 export default function HomeScreen() {
 
-  useEffect(() => {
-    fetch("https://www.google.com")
-      .then((r) => console.log("GOOGLE STATUS", r.status))
-      .catch((e) => console.log("GOOGLE ERROR", e));
-
-    fetch("https://ganediqbiawagnefbiop.supabase.co/auth/v1/settings")
-      .then((r) => console.log("SUPABASE STATUS", r.status))
-      .catch((e) => console.log("SUPABASE ERROR", e));
-  }, []);
-
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [authEmail, setAuthEmail] = useState("");
