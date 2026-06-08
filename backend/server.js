@@ -1776,18 +1776,19 @@ app.post("/pinterest/create-pin", async (req, res) => {
 app.post("/schedule-campaign", async (req, res) => {
   try {
     const {
-      userId,
-      title,
-      description,
-      imageUrl,
-      productLink,
-      boardId,
-      publishAt,
-      platform,
-      repeatType,
-      nextRunAt,
-      repeatUntil,
-    } = req.body;
+  userId,
+  title,
+  description,
+  imageUrl,
+  productLink,
+  boardId,
+  pageId,
+  publishAt,
+  platform,
+  repeatType,
+  nextRunAt,
+  repeatUntil,
+} = req.body;
  
     if (!title || !description || !publishAt) {
       return res.status(400).json({
@@ -1809,6 +1810,7 @@ app.post("/schedule-campaign", async (req, res) => {
         image_url: imageUrl || null,
         product_link: productLink || null,
         board_id: boardId || null,
+        page_id: pageId || null,
         publish_at: publishAt,
         status: "scheduled",
         campaign_status: "active",
