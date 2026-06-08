@@ -1251,7 +1251,9 @@ app.get("/facebook/pages", async (req, res) => {
     const data =
       await response.json();
  
-    res.json(data);
+    res.json({
+  rawFacebookResponse: data
+});
  
   }
  
