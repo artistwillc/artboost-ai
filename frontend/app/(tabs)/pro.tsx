@@ -131,10 +131,11 @@ useState<"Pinterest" | "Facebook" | "Instagram" | "X">(
       .single();
  
     if (error) {
-      console.log("Profile load error:", error.message);
-      return;
-    }
+  console.log("Profile load error:", error);
+  return;
+}
  
+    console.log("PROFILE DATA:", data);
     setProfile(data);
   };
  
@@ -416,6 +417,7 @@ setImageUrl(campaign.imageUrl || "");
   imageUrl,
   productLink,
   boardId: selectedPlatform === "Pinterest" ? selectedBoard : null,
+  pageId: selectedPlatform === "Facebook" ? selectedFacebookPage : null,
   publishAt: getPublishAtIso(),
   platform: selectedPlatform,
  

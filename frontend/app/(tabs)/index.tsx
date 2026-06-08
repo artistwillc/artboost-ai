@@ -40,6 +40,7 @@ const REPEAT_OPTIONS = [
 ];
 
 export default function HomeScreen() {
+
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -110,32 +111,37 @@ export default function HomeScreen() {
   };
 
   const signUp = async () => {
-    if (!authEmail || !authPassword) {
-      Alert.alert("Missing Info", "Enter an email and password.");
+  if (!authEmail || !authPassword) {
+    Alert.alert("Missing Info", "Enter an email and password.");
+    return;
+  }
+
+  try {
+    setAuthLoading(true);
+
+    const result = await supabase.auth.signUp({
+      email: authEmail.trim(),
+      password: authPassword,
+    });
+
+    console.log("SIGNUP RESULT:", JSON.stringify(result, null, 2));
+
+    if (result.error) {
+      Alert.alert("Signup Error", result.error.message);
       return;
     }
 
-    try {
-      setAuthLoading(true);
-
-      const { error } = await supabase.auth.signUp({
-        email: authEmail.trim(),
-        password: authPassword,
-      });
-
-      if (error) {
-        Alert.alert("Signup Error", error.message);
-        return;
-      }
-
-      Alert.alert(
-        "Account Created",
-        "Check your email if Supabase requires confirmation, then log in."
-      );
-    } finally {
-      setAuthLoading(false);
-    }
-  };
+    Alert.alert(
+      "Account Created",
+      "Account created. If email confirmation is required, check your email before logging in."
+    );
+  } catch (err: any) {
+    console.log("SIGNUP EXCEPTION:", err);
+    Alert.alert("Signup Exception", err?.message || JSON.stringify(err));
+  } finally {
+    setAuthLoading(false);
+  }
+};
 
   const signIn = async () => {
     if (!authEmail || !authPassword) {
@@ -146,10 +152,24 @@ export default function HomeScreen() {
     try {
       setAuthLoading(true);
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: authEmail.trim(),
-        password: authPassword,
-      });
+      try {
+  const result = await supabase.auth.signInWithPassword({
+    email: authEmail.trim(),
+    password: authPassword,
+  });
+
+  console.log("LOGIN RESULT:", JSON.stringify(result, null, 2));
+
+  if (result.error) {
+    Alert.alert("Login Error", result.error.message);
+    return;
+  }
+
+  Alert.alert("Logged In", "Welcome back to ArtBoost AI.");
+} catch (err) {
+  console.log("LOGIN EXCEPTION:", err);
+  Alert.alert("Login Error", JSON.stringify(err));
+}
 
       if (error) {
         Alert.alert("Login Error", error.message);
