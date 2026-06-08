@@ -1249,9 +1249,9 @@ app.get("/facebook/pages", async (req, res) => {
       );
  
     const data =
-  await response.json();
-
-res.json(data);
+      await response.json();
+ 
+    res.json(data);
  
   }
  
@@ -1662,64 +1662,75 @@ async function publishPinterestPin({
 }
  
 async function publishFacebookPost({
+ 
   title,
   description,
   productLink,
   imageUrl,
   pageId,
+ 
 }) {
+ 
   if (!facebookConnection.token) {
-    throw new Error("Facebook not connected");
+ 
+    throw new Error(
+      "Facebook not connected"
+    );
+ 
   }
-
-  if (!pageId) {
-    throw new Error("Missing Facebook pageId for scheduled post");
-  }
-
-  const pagesResponse = await fetch(
-    `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
-  );
-
-  const pagesData = await pagesResponse.json();
-
-  if (!pagesData.data || !pagesData.data.length) {
-    throw new Error("No Facebook Pages found");
-  }
-
-  const page = pagesData.data.find((p) => p.id === pageId);
-
-  if (!page) {
-    throw new Error("Selected Facebook Page not found");
-  }
-
-  const message = `${title}
-
+ 
+  const message = `
+ 
+${title}
+ 
 ${description}
-
-${productLink || ""}`;
-
-  const response = await fetch(
-    `https://graph.facebook.com/v23.0/${page.id}/photos`,
+ 
+${productLink || ""}
+ 
+`;
+ 
+  const response =
+  await fetch(
+ 
+`https://graph.facebook.com/v23.0/${pageId}/photos`,
+ 
     {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+ 
+      method:"POST",
+ 
+      headers:{
+        "Content-Type":
+        "application/json"
       },
-      body: JSON.stringify({
-        url: imageUrl,
-        caption: message,
-        access_token: page.access_token,
+ 
+      body:JSON.stringify({
+ 
+        url:imageUrl,
+ 
+        caption:message,
+ 
+        access_token:
+        facebookConnection.token,
+ 
       }),
+ 
     }
+ 
   );
-
-  const data = await response.json();
-
+ 
+  const data =
+  await response.json();
+ 
   if (data.error) {
-    throw new Error(data.error.message);
+ 
+    throw new Error(
+      data.error.message
+    );
+ 
   }
-
+ 
   return data;
+ 
 }
  
 app.post("/pinterest/create-pin", async (req, res) => {
@@ -1765,19 +1776,18 @@ app.post("/pinterest/create-pin", async (req, res) => {
 app.post("/schedule-campaign", async (req, res) => {
   try {
     const {
-  userId,
-  title,
-  description,
-  imageUrl,
-  productLink,
-  boardId,
-  pageId,
-  publishAt,
-  platform,
-  repeatType,
-  nextRunAt,
-  repeatUntil,
-} = req.body;
+      userId,
+      title,
+      description,
+      imageUrl,
+      productLink,
+      boardId,
+      publishAt,
+      platform,
+      repeatType,
+      nextRunAt,
+      repeatUntil,
+    } = req.body;
  
     if (!title || !description || !publishAt) {
       return res.status(400).json({
@@ -1799,7 +1809,6 @@ app.post("/schedule-campaign", async (req, res) => {
         image_url: imageUrl || null,
         product_link: productLink || null,
         board_id: boardId || null,
-        page_id: pageId || null,
         publish_at: publishAt,
         status: "scheduled",
         campaign_status: "active",
