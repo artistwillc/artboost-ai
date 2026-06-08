@@ -41,6 +41,21 @@ const REPEAT_OPTIONS = [
 
 export default function HomeScreen() {
 
+  useEffect(() => {
+  fetch("https://ganediqbiawagnefbiop.supabase.co/rest/v1/", {
+    headers: {
+      apikey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "",
+      Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ""}`,
+    },
+  })
+    .then((r) => {
+      console.log("DIRECT SUPABASE STATUS:", r.status);
+      return r.text();
+    })
+    .then((t) => console.log("DIRECT SUPABASE TEXT:", t.slice(0, 300)))
+    .catch((e) => console.log("DIRECT SUPABASE ERROR:", e));
+}, []);
+
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [authEmail, setAuthEmail] = useState("");
