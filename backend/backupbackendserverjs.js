@@ -1056,8 +1056,6 @@ app.post("/x/post", async (req, res) => {
 app.get("/will-test", (req, res) => {
   res.json({
     works: true,
-    version: "INSTAGRAM DEBUG 2",
-    commit: "7d9dd16",
     time: new Date().toISOString()
   });
 });
@@ -1251,9 +1249,9 @@ app.get("/facebook/pages", async (req, res) => {
       );
  
     const data =
-  await response.json();
-
-res.json(data);
+      await response.json();
+ 
+    res.json(data);
  
   }
  
@@ -1664,206 +1662,75 @@ async function publishPinterestPin({
 }
  
 async function publishFacebookPost({
+ 
   title,
   description,
   productLink,
   imageUrl,
   pageId,
+ 
 }) {
+ 
   if (!facebookConnection.token) {
-    throw new Error("Facebook not connected");
+ 
+    throw new Error(
+      "Facebook not connected"
+    );
+ 
   }
-
-  if (!pageId) {
-    throw new Error("Missing Facebook pageId for scheduled post");
-  }
-
-  const pagesResponse = await fetch(
-    `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
-  );
-
-  const pagesData = await pagesResponse.json();
-
-  if (!pagesData.data || !pagesData.data.length) {
-    throw new Error("No Facebook Pages found");
-  }
-
-  const page = pagesData.data.find((p) => p.id === pageId);
-
-  if (!page) {
-    throw new Error("Selected Facebook Page not found");
-  }
-
-  const message = `${title}
-
+ 
+  const message = `
+ 
+${title}
+ 
 ${description}
-<<<<<<< HEAD
-
-${productLink || ""}`;
-
-  const response = await fetch(
-    `https://graph.facebook.com/v23.0/${page.id}/photos`,
+ 
+${productLink || ""}
+ 
+`;
+ 
+  const response =
+  await fetch(
+ 
+`https://graph.facebook.com/v23.0/${pageId}/photos`,
+ 
     {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+ 
+      method:"POST",
+ 
+      headers:{
+        "Content-Type":
+        "application/json"
       },
-      body: JSON.stringify({
-        url: imageUrl,
-        caption: message,
-        access_token: page.access_token,
+ 
+      body:JSON.stringify({
+ 
+        url:imageUrl,
+ 
+        caption:message,
+ 
+        access_token:
+        facebookConnection.token,
+ 
       }),
+ 
     }
+ 
   );
-
-  const data = await response.json();
-
+ 
+  const data =
+  await response.json();
+ 
   if (data.error) {
-    throw new Error(data.error.message);
+ 
+    throw new Error(
+      data.error.message
+    );
+ 
   }
-
+ 
   return data;
-}
-
-async function publishInstagramPost({ title, description, imageUrl }) {
-  const instagramUserId = process.env.INSTAGRAM_USER_ID;
-  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
-
-  if (!instagramUserId || !accessToken) {
-    throw new Error("Instagram not configured");
-  }
-
-  if (!imageUrl) {
-    throw new Error("Instagram requires an imageUrl to publish.");
-  }
-
-  const message = `${title}
-
-${description}`;
-
-  const createContainerResponse = await fetch(
-    `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image_url: imageUrl,
-        caption: message,
-        access_token: accessToken,
-      }),
-    }
-  );
-
-  const createContainerData = await createContainerResponse.json();
-
-  if (createContainerData.error) {
-    throw new Error(createContainerData.error.message);
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 8000));
-
-  const publishResponse = await fetch(
-    `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        creation_id: createContainerData.id,
-        access_token: accessToken,
-      }),
-    }
-  );
-
-  const publishData = await publishResponse.json();
-
-  if (publishData.error) {
-    throw new Error(publishData.error.message);
-  }
-
-  return publishData;
-}
-
-async function publishXPost({ title, description, productLink, imageUrl }) {
-  const message = `${title}
-
-${description}
-
-${productLink || ""}`.trim();
-
-  if (!message) {
-    throw new Error("Missing X post message");
-  }
-
-  const oauth = OAuth({
-    consumer: {
-      key: process.env.X_API_KEY,
-      secret: process.env.X_API_SECRET,
-    },
-    signature_method: "HMAC-SHA1",
-    hash_function(baseString, key) {
-      return CryptoJS.HmacSHA1(baseString, key).toString(CryptoJS.enc.Base64);
-    },
-  });
-
-  const token = {
-    key: process.env.X_ACCESS_TOKEN,
-    secret: process.env.X_ACCESS_TOKEN_SECRET,
-  };
-
-  const requestData = {
-    url: "https://api.twitter.com/2/tweets",
-    method: "POST",
-  };
-
-  const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
-
-  const response = await fetch(requestData.url, {
-    method: "POST",
-    headers: {
-      ...authHeader,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text: message.slice(0, 280),
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    console.log("X Scheduled Post Error:", data);
-    throw new Error(JSON.stringify(data));
-  }
-
-  return data;
-}
-=======
->>>>>>> 337b1d3 (Save backend progress)
-
-${productLink || ""}`;
-
-  const response = await fetch(
-    `https://graph.facebook.com/v23.0/${page.id}/photos`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url: imageUrl,
-        caption: message,
-        access_token: page.access_token,
-      }),
-    }
-  );
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(data.error.message);
-  }
-
-  return data;
+ 
 }
  
 app.post("/pinterest/create-pin", async (req, res) => {
@@ -1909,26 +1776,19 @@ app.post("/pinterest/create-pin", async (req, res) => {
 app.post("/schedule-campaign", async (req, res) => {
   try {
     const {
-  userId,
-  title,
-  description,
-  imageUrl,
-  productLink,
-  boardId,
-  pageId,
-  publishAt,
-  platform,
-  repeatType,
-  nextRunAt,
-  repeatUntil,
-} = req.body;
-<<<<<<< HEAD
-
-console.log("SCHEDULE REQUEST PLATFORM:", platform);
-
-=======
+      userId,
+      title,
+      description,
+      imageUrl,
+      productLink,
+      boardId,
+      publishAt,
+      platform,
+      repeatType,
+      nextRunAt,
+      repeatUntil,
+    } = req.body;
  
->>>>>>> 337b1d3 (Save backend progress)
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         error: "Missing title, description, or publishAt.",
@@ -1949,7 +1809,6 @@ console.log("SCHEDULE REQUEST PLATFORM:", platform);
         image_url: imageUrl || null,
         product_link: productLink || null,
         board_id: boardId || null,
-        page_id: pageId || null,
         publish_at: publishAt,
         status: "scheduled",
         campaign_status: "active",
@@ -2171,21 +2030,7 @@ async function runScheduledCampaigns() {
  
       let publishData = null;
  
-<<<<<<< HEAD
-const platform = String(campaign.platform || "").trim().toLowerCase();
-
-console.log(
-  "SCHEDULER DEBUG:",
-  "id =", campaign.id,
-  "raw platform =", campaign.platform,
-  "normalized =", platform
-);
-const platform = String(campaign.platform || "").toLowerCase();
-
-if (platform === "facebook") {
-=======
 if (campaign.platform === "Facebook") {
->>>>>>> 337b1d3 (Save backend progress)
   publishData = await publishFacebookPost({
     title: campaign.title,
     description: campaign.description,
@@ -2193,42 +2038,7 @@ if (campaign.platform === "Facebook") {
     imageUrl: campaign.image_url,
     pageId: campaign.page_id,
   });
-<<<<<<< HEAD
-} else if (platform === "instagram") {
-  console.log("Publishing Instagram campaign:", campaign.id);
-
-  publishData = await publishInstagramPost({
-    title: campaign.title,
-    description: campaign.description,
-    imageUrl: campaign.image_url,
-  });
-} else if (platform === "x") {
-  console.log("Publishing X campaign:", campaign.id);
-
-  publishData = await publishXPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
 } else {
-  console.log(
-    "Publishing Pinterest campaign:",
-    campaign.id,
-    "platform =",
-    campaign.platform
-  );
-
-  publishData = await publishInstagramPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
-} else if (platform === "pinterest") {
-=======
-} else {
->>>>>>> 337b1d3 (Save backend progress)
   publishData = await publishPinterestPin({
     boardId: campaign.board_id,
     title: campaign.title,
@@ -2324,8 +2134,6 @@ if (campaign.platform === "Facebook") {
         message: `"${campaign.title}" failed to publish. ${err.message}`,
         type: "error",
       });
-console.log("SCHEDULER PLATFORM DEBUG:", campaign.id, campaign.platform);
-     
       console.log("Scheduled campaign failed:", campaign.id, err.message);
     }
   }
@@ -2405,21 +2213,6 @@ IMPORTANT RULES
 - Do NOT use bullet points.
 - Do NOT wrap anything in quotes.
 - Do NOT mention that you analyzed the image.
-
-X HARD RULES
-
-When platform = X:
-
-- TITLE must be 60 characters or less.
-- DESCRIPTION must be 120 characters or less.
-- DESCRIPTION must be one short punchy sentence.
-- HASHTAGS must contain exactly 3 hashtags.
-- CTA must be blank.
-- Do not use "link in bio".
-- Do not include product links.
-- Do not include URLs.
-- Do not write long paragraphs.
-- Do not use more than 3 hashtags.
  
 INSTAGRAM HARD RULES
  
@@ -2438,13 +2231,6 @@ When platform = Instagram:
 - ".org" is forbidden.
 - ".shop" is forbidden.
 - ".store" is forbidden.
-
-- DESCRIPTION must be 2 to 4 complete sentences.
-- DESCRIPTION must feel like a real Instagram caption, not a short product blurb.
-- DESCRIPTION should be approximately 50 to 100 words.
-- DESCRIPTION should tell a story or create excitement around the artwork rather than simply describing it.
-- HASHTAGS must contain 12 to 15 hashtags.
-- CTA must be one complete sentence using link-in-bio wording.
  
 The DESCRIPTION must contain zero links.
  
@@ -2509,9 +2295,7 @@ Focus on:
  
 HASHTAGS:
  
-For Instagram, generate exactly 12 to 15 highly relevant hashtags.
-Each hashtag must be on its own line.
-Mix broad art hashtags with niche artwork-specific hashtags.
+Generate 10-15 strong hashtags for ${platform}.
  
 Each hashtag must be on its own line.
  
@@ -2777,117 +2561,88 @@ res.json({
   }
 });
  
-app.post("/generate-platform-content", async (req, res) => {
+app.post("/generate-variations", async (req, res) => {
   try {
-    const { title, description, hashtags, cta, productLink } = req.body;
-
-    if (!title || !description) {
-      return res.status(400).json({
-        error: "Missing title or description.",
-      });
-    }
-
+    const { title, description, platform, productLink } = req.body;
+ 
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
       input: `
-You are ArtBoost AI, a platform-specific marketing assistant for artists and print-on-demand sellers.
-
-Create unique publishing content for Pinterest, Facebook, Instagram, and X from this artwork campaign.
-
-Base Title:
-${title}
-
-Base Description:
-${description}
-
-Base Hashtags:
-${hashtags || ""}
-
-Base CTA:
-${cta || ""}
-
+You are ArtBoost AI, a premium marketing assistant for artists, creators, and print-on-demand sellers.
+ 
+Generate 5 UNIQUE high-performing marketing variations for this artwork campaign.
+ 
+Platform:
+${platform || "Pinterest"}
+ 
+Original Title:
+${title || "Untitled Artwork"}
+ 
+Original Description:
+${description || "No description provided"}
+ 
 Product Link:
-${productLink || ""}
-
-Return ONLY valid JSON. No markdown. No explanation.
-
-Exact JSON format:
+${productLink || "No product link"}
+ 
+Create these exact variation styles:
+1. Emotional
+2. SEO Optimized
+3. Viral Hook
+4. Luxury/Premium
+5. Short Punchy
+ 
+Return ONLY valid JSON in this exact structure:
 {
-  "pinterest": {
-    "title": "",
-    "description": ""
-  },
-  "facebook": {
-    "message": ""
-  },
-  "instagram": {
-    "message": ""
-  },
-  "x": {
-    "message": ""
-  }
+  "variations": [
+    {
+      "style": "Emotional",
+      "title": "...",
+      "description": "..."
+    },
+    {
+      "style": "SEO Optimized",
+      "title": "...",
+      "description": "..."
+    },
+    {
+      "style": "Viral Hook",
+      "title": "...",
+      "description": "..."
+    },
+    {
+      "style": "Luxury/Premium",
+      "title": "...",
+      "description": "..."
+    },
+    {
+      "style": "Short Punchy",
+      "title": "...",
+      "description": "..."
+    }
+  ]
 }
-
+ 
 Rules:
-
-- Make every platform noticeably different.
-- Do not copy the same caption across platforms.
-- Each platform must sound native to that platform.
-
-PINTEREST:
-- Create an SEO-friendly title under 100 characters.
-- Create a keyword-rich description of 40-80 words.
-- Focus on search, saving, gifts, wall art, stickers, apparel, decor, collectors, and product discovery.
-- Include the product link naturally if provided.
-
-FACEBOOK:
-- Create a conversational post of 60-120 words.
-- Sound human, excited, and natural.
-- Mention what makes the artwork stand out.
-- Include a clear call-to-action.
-- Include the product link if provided.
-
-INSTAGRAM:
-- Create a 50-100 word caption using 2-4 complete sentences.
-- Make it feel like real social media storytelling, not a product listing.
-- Do NOT include URLs.
-- Do NOT include website addresses.
-- Do NOT include domains.
-- Do NOT include product links.
-- Use link-in-bio wording only.
-- End with exactly 12 to 15 relevant hashtags.
-- Hashtags must be separated by spaces.
-
-X:
-- Create a short punchy post under 260 characters.
-- Use no more than 3 hashtags.
-- Include the product link if provided.
-- Keep it bold, simple, and scroll-stopping.
-
-Final check:
-- Pinterest should be searchable.
-- Facebook should feel conversational.
-- Instagram should feel visual and story-driven.
-- X should be short and punchy.
-- Return only valid JSON.
-
+- Do not include markdown.
+- Do not explain anything.
+- Do not wrap JSON in code fences.
+- Make each variation noticeably different.
+      `,
+    });
+ 
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
-
+ 
     const parsed = JSON.parse(raw);
-
-    res.json({
-      success: true,
-      content: parsed,
-    });
+ 
+    res.json(parsed);
   } catch (err) {
-    console.error("Platform content generation error:", err);
-
+    console.error("Variation generation error:", err);
     res.status(500).json({
-      error: "Failed to generate platform-specific content.",
+      error: "Failed to generate AI variations.",
       details: err.message,
     });
   }
@@ -2905,11 +2660,7 @@ app.listen(PORT, async () => {
     facebookConnection.connected
   );
 
-<<<<<<< HEAD
-  console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
-=======
   console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
->>>>>>> 337b1d3 (Save backend progress)
 
   console.log(
     `Stripe configured: ${
