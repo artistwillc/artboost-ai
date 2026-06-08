@@ -981,9 +981,7 @@ app.get("/x/status", (req, res) => {
     hasAccessTokenSecret: !!process.env.X_ACCESS_TOKEN_SECRET,
     message: "X credentials check complete.",
 postTestRouteAdded: true,
-  });
-});
- 
+  }); 
 app.post("/x/post", async (req, res) => {
   try {
     const { message, imageUrl } = req.body;
@@ -1502,8 +1500,6 @@ app.get("/x/credentials-check", (req, res) => {
     hasAccessTokenSecret: Boolean(process.env.X_ACCESS_TOKEN_SECRET),
     message: "X credentials check complete.",
   });
-});
- 
 });
  
 app.get("/auth/pinterest/callback", async (req, res) => {
