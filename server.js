@@ -1526,26 +1526,26 @@ app.get("/x/credentials-check", (req, res) => {
  
 
 app.get("/facebook/test", (req, res) => {
-
   res.json({
-
-    connected:
-      facebookConnection.connected,
-
-    hasToken:
-      Boolean(
-        facebookConnection.token
-      ),
-
-    readyForPages:false,
-
-    message:
-      "Facebook login works. Page publishing requires Meta Page permissions."
-
+    connected: facebookConnection.connected,
+    connectedAt: facebookConnection.connectedAt || null,
+    hasToken: Boolean(facebookConnection.token),
   });
-
 });
-
+ 
+app.get("/x/credentials-check", (req, res) => {
+  res.json({
+    connected: true,
+    hasClientId: Boolean(process.env.X_CLIENT_ID),
+    hasClientSecret: Boolean(process.env.X_CLIENT_SECRET),
+    hasApiKey: Boolean(process.env.X_API_KEY),
+    hasApiSecret: Boolean(process.env.X_API_SECRET),
+    hasAccessToken: Boolean(process.env.X_ACCESS_TOKEN),
+    hasAccessTokenSecret: Boolean(process.env.X_ACCESS_TOKEN_SECRET),
+    message: "X credentials check complete.",
+  });
+});
+ 
 app.get("/auth/pinterest/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
@@ -1951,12 +1951,7 @@ Tap the link in bio to learn more.
   };
 }
 
-async function publishInstagramPost({
-  title,
-  description,
-  productLink,
-  imageUrl,
-}) {
+async function publishInstagramPost({ title, description, imageUrl }) {
   const instagramUserId = process.env.INSTAGRAM_USER_ID;
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
 
@@ -1968,23 +1963,15 @@ async function publishInstagramPost({
     throw new Error("Instagram requires an imageUrl to publish.");
   }
 
-  const message = `
-${title || ""}
+  const message = `${title}
 
-${description || ""}
-
-${productLink || ""}
-
-Tap the link in bio to learn more.
-`;
+${description}`;
 
   const createContainerResponse = await fetch(
     `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image_url: imageUrl,
         caption: message,
@@ -1996,10 +1983,7 @@ Tap the link in bio to learn more.
   const createContainerData = await createContainerResponse.json();
 
   if (createContainerData.error) {
-    throw new Error(
-      createContainerData.error.message ||
-      "Instagram container creation failed"
-    );
+    throw new Error(createContainerData.error.message);
   }
 
   await new Promise((resolve) => setTimeout(resolve, 8000));
@@ -2008,9 +1992,7 @@ Tap the link in bio to learn more.
     `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         creation_id: createContainerData.id,
         access_token: accessToken,
@@ -2021,18 +2003,10 @@ Tap the link in bio to learn more.
   const publishData = await publishResponse.json();
 
   if (publishData.error) {
-    throw new Error(
-      publishData.error.message ||
-      "Instagram publish failed"
-    );
+    throw new Error(publishData.error.message);
   }
 
-  return {
-    success: true,
-    platform: "instagram",
-    creationId: createContainerData.id,
-    result: publishData,
-  };
+  return publishData;
 }
  
 app.post("/pinterest/create-pin", async (req, res) => {
@@ -2094,6 +2068,7 @@ app.post("/schedule-campaign", async (req, res) => {
 
 console.log("SCHEDULE REQUEST PLATFORM:", platform);
 
+ 
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         error: "Missing title, description, or publishAt.",
@@ -2385,10 +2360,16 @@ if (platform === "facebook") {
   publishData = await publishInstagramPost({
     title: campaign.title,
     description: campaign.description,
-    productLink: campaign.product_link,
     imageUrl: campaign.image_url,
   });
-} else if (platform === "pinterest") {
+} else {
+  console.log(
+    "Publishing Pinterest campaign:",
+    campaign.id,
+    "platform =",
+    campaign.platform
+  );
+
   publishData = await publishPinterestPin({
     boardId: campaign.board_id,
     title: campaign.title,
@@ -2675,6 +2656,7 @@ HASHTAGS:
 For Instagram, generate exactly 12 to 15 highly relevant hashtags.
 Each hashtag must be on its own line.
 Mix broad art hashtags with niche artwork-specific hashtags.
+Generate 10-15 strong hashtags for ${platform}.
  
 Each hashtag must be on its own line.
  
@@ -3066,13 +3048,16 @@ app.listen(PORT, async () => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
-  console.log("LIVE SERVER VERSION: SCHEDULER DEBUG 1");
+
+  await loadFacebookConnection();
+
   console.log(
     "Facebook saved connection loaded:",
     facebookConnection.connected
   );
 
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
+  console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
 
   console.log(
     `Stripe configured: ${
@@ -3092,4 +3077,3 @@ app.listen(PORT, () => {
     }`
   );
 });
-
