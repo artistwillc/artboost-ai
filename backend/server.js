@@ -2200,6 +2200,8 @@ if (platform === "facebook") {
         message: `"${campaign.title}" failed to publish. ${err.message}`,
         type: "error",
       });
+console.log("SCHEDULER PLATFORM DEBUG:", campaign.id, campaign.platform);
+     
       console.log("Scheduled campaign failed:", campaign.id, err.message);
     }
   }
@@ -2726,7 +2728,7 @@ app.listen(PORT, async () => {
     facebookConnection.connected
   );
 
-  console.log("LIVE SERVER VERSION: INSTAGRAM SCHEDULER FIX 1");
+  console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
 
   console.log(
     `Stripe configured: ${
