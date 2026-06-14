@@ -2271,6 +2271,40 @@ async function runScheduledCampaigns() {
           campaign.platform
         );
       }
+const platform = String(campaign.platform || "").trim().toLowerCase();
+
+if (platform === "facebook") {
+  publishData = await publishFacebookPost({
+    title: campaign.title,
+    description: campaign.description,
+    productLink: campaign.product_link,
+    imageUrl: campaign.image_url,
+    pageId: campaign.page_id,
+  });
+} else if (platform === "instagram") {
+  console.log("Publishing Instagram campaign:", campaign.id);
+
+  publishData = await publishInstagramPost({
+    title: campaign.title,
+    description: campaign.description,
+    imageUrl: campaign.image_url,
+  });
+} else {
+  console.log(
+    "Publishing Pinterest campaign:",
+    campaign.id,
+    "platform =",
+    campaign.platform
+  );
+
+  publishData = await publishPinterestPin({
+    boardId: campaign.board_id,
+    title: campaign.title,
+    description: campaign.description,
+    link: campaign.product_link,
+    imageUrl: campaign.image_url,
+  });
+}
  
       const repeatType = campaign.repeat_type || "one_time";
       let nextRunDate = null;
