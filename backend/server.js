@@ -1784,13 +1784,11 @@ ${description}`;
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
   const hashtags = "#RatFink #HotRodArt #CustomArtwork";
-const link = productLink || "";
 
 const reservedLength =
   title.length +
   hashtags.length +
-  link.length +
-  8;
+  6;
 
 const maxDescriptionLength = Math.max(40, 279 - reservedLength);
 
@@ -1803,7 +1801,6 @@ const message = [
   title,
   shortDescription,
   hashtags,
-  link,
 ]
   .filter(Boolean)
   .join("\n")
