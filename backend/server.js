@@ -1781,6 +1781,61 @@ ${description}`;
 
   return publishData;
 }
+
+async function publishXPost({ title, description, productLink, imageUrl }) {
+  const message = `${title}
+
+${description}
+
+${productLink || ""}`.trim();
+
+  if (!message) {
+    throw new Error("Missing X post message");
+  }
+
+  const oauth = OAuth({
+    consumer: {
+      key: process.env.X_API_KEY,
+      secret: process.env.X_API_SECRET,
+    },
+    signature_method: "HMAC-SHA1",
+    hash_function(baseString, key) {
+      return CryptoJS.HmacSHA1(baseString, key).toString(CryptoJS.enc.Base64);
+    },
+  });
+
+  const token = {
+    key: process.env.X_ACCESS_TOKEN,
+    secret: process.env.X_ACCESS_TOKEN_SECRET,
+  };
+
+  const requestData = {
+    url: "https://api.twitter.com/2/tweets",
+    method: "POST",
+  };
+
+  const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
+
+  const response = await fetch(requestData.url, {
+    method: "POST",
+    headers: {
+      ...authHeader,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text: message.slice(0, 280),
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.log("X Scheduled Post Error:", data);
+    throw new Error(JSON.stringify(data));
+  }
+
+  return data;
+}
  
 app.post("/pinterest/create-pin", async (req, res) => {
   try {
@@ -2099,6 +2154,15 @@ if (platform === "facebook") {
   publishData = await publishInstagramPost({
     title: campaign.title,
     description: campaign.description,
+    imageUrl: campaign.image_url,
+  });
+} else if (platform === "x") {
+  console.log("Publishing X campaign:", campaign.id);
+
+  publishData = await publishXPost({
+    title: campaign.title,
+    description: campaign.description,
+    productLink: campaign.product_link,
     imageUrl: campaign.image_url,
   });
 } else {
