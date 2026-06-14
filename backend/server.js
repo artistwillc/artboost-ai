@@ -1056,6 +1056,8 @@ app.post("/x/post", async (req, res) => {
 app.get("/will-test", (req, res) => {
   res.json({
     works: true,
+    version: "INSTAGRAM DEBUG 2",
+    commit: "7d9dd16",
     time: new Date().toISOString()
   });
 });
@@ -1721,6 +1723,119 @@ ${productLink || ""}`;
 
   return data;
 }
+
+async function publishInstagramPost({ title, description, imageUrl }) {
+  const instagramUserId = process.env.INSTAGRAM_USER_ID;
+  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+  if (!instagramUserId || !accessToken) {
+    throw new Error("Instagram not configured");
+  }
+
+  if (!imageUrl) {
+    throw new Error("Instagram requires an imageUrl to publish.");
+  }
+
+  const message = `${title}
+
+${description}`;
+
+  const createContainerResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        caption: message,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const createContainerData = await createContainerResponse.json();
+
+  if (createContainerData.error) {
+    throw new Error(createContainerData.error.message);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 8000));
+
+  const publishResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        creation_id: createContainerData.id,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const publishData = await publishResponse.json();
+
+  if (publishData.error) {
+    throw new Error(publishData.error.message);
+  }
+
+  return publishData;
+}
+
+async function publishXPost({ title, description, productLink, imageUrl }) {
+  const message = `${title}
+
+${description}
+
+${productLink || ""}`.trim();
+
+  if (!message) {
+    throw new Error("Missing X post message");
+  }
+
+  const oauth = OAuth({
+    consumer: {
+      key: process.env.X_API_KEY,
+      secret: process.env.X_API_SECRET,
+    },
+    signature_method: "HMAC-SHA1",
+    hash_function(baseString, key) {
+      return CryptoJS.HmacSHA1(baseString, key).toString(CryptoJS.enc.Base64);
+    },
+  });
+
+  const token = {
+    key: process.env.X_ACCESS_TOKEN,
+    secret: process.env.X_ACCESS_TOKEN_SECRET,
+  };
+
+  const requestData = {
+    url: "https://api.twitter.com/2/tweets",
+    method: "POST",
+  };
+
+  const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
+
+  const response = await fetch(requestData.url, {
+    method: "POST",
+    headers: {
+      ...authHeader,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text: message.slice(0, 280),
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.log("X Scheduled Post Error:", data);
+    throw new Error(JSON.stringify(data));
+  }
+
+  return data;
+}
  
 app.post("/pinterest/create-pin", async (req, res) => {
   try {
@@ -1778,7 +1893,9 @@ app.post("/schedule-campaign", async (req, res) => {
   nextRunAt,
   repeatUntil,
 } = req.body;
- 
+
+console.log("SCHEDULE REQUEST PLATFORM:", platform);
+
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         error: "Missing title, description, or publishAt.",
@@ -2021,7 +2138,16 @@ async function runScheduledCampaigns() {
  
       let publishData = null;
  
-if (campaign.platform === "Facebook") {
+const platform = String(campaign.platform || "").trim().toLowerCase();
+
+console.log(
+  "SCHEDULER DEBUG:",
+  "id =", campaign.id,
+  "raw platform =", campaign.platform,
+  "normalized =", platform
+);
+
+if (platform === "facebook") {
   publishData = await publishFacebookPost({
     title: campaign.title,
     description: campaign.description,
@@ -2029,7 +2155,31 @@ if (campaign.platform === "Facebook") {
     imageUrl: campaign.image_url,
     pageId: campaign.page_id,
   });
+} else if (platform === "instagram") {
+  console.log("Publishing Instagram campaign:", campaign.id);
+
+  publishData = await publishInstagramPost({
+    title: campaign.title,
+    description: campaign.description,
+    imageUrl: campaign.image_url,
+  });
+} else if (platform === "x") {
+  console.log("Publishing X campaign:", campaign.id);
+
+  publishData = await publishXPost({
+    title: campaign.title,
+    description: campaign.description,
+    productLink: campaign.product_link,
+    imageUrl: campaign.image_url,
+  });
 } else {
+  console.log(
+    "Publishing Pinterest campaign:",
+    campaign.id,
+    "platform =",
+    campaign.platform
+  );
+
   publishData = await publishPinterestPin({
     boardId: campaign.board_id,
     title: campaign.title,
@@ -2125,6 +2275,8 @@ if (campaign.platform === "Facebook") {
         message: `"${campaign.title}" failed to publish. ${err.message}`,
         type: "error",
       });
+console.log("SCHEDULER PLATFORM DEBUG:", campaign.id, campaign.platform);
+     
       console.log("Scheduled campaign failed:", campaign.id, err.message);
     }
   }
@@ -2651,7 +2803,7 @@ app.listen(PORT, async () => {
     facebookConnection.connected
   );
 
-  console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
+  console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
 
   console.log(
     `Stripe configured: ${
