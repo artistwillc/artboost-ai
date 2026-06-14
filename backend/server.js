@@ -2140,6 +2140,13 @@ async function runScheduledCampaigns() {
  
 const platform = String(campaign.platform || "").trim().toLowerCase();
 
+console.log(
+  "SCHEDULER DEBUG:",
+  "id =", campaign.id,
+  "raw platform =", campaign.platform,
+  "normalized =", platform
+);
+
 if (platform === "facebook") {
   publishData = await publishFacebookPost({
     title: campaign.title,
