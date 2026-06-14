@@ -2976,6 +2976,7 @@ app.listen(PORT, async () => {
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
   console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
   console.log("LIVE SERVER VERSION: INSTAGRAM SCHEDULER FIX 1");
+  console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
 
   console.log(
     `Stripe configured: ${
