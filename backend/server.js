@@ -1838,7 +1838,9 @@ app.post("/schedule-campaign", async (req, res) => {
   nextRunAt,
   repeatUntil,
 } = req.body;
- 
+
+console.log("SCHEDULE REQUEST PLATFORM:", platform);
+
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         error: "Missing title, description, or publishAt.",
