@@ -2068,7 +2068,10 @@ app.post("/schedule-campaign", async (req, res) => {
 
 console.log("SCHEDULE REQUEST PLATFORM:", platform);
 
+<<<<<<< HEAD
  
+=======
+>>>>>>> fd99868 (Log schedule request platform information)
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         error: "Missing title, description, or publishAt.",
