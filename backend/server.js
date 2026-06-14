@@ -1785,7 +1785,7 @@ ${description}`;
 async function publishXPost({ title, description, productLink, imageUrl }) {
   const hashtags = "#RatFink #HotRodArt #CustomArtwork";
 
-const maxTweetLength = 260;
+const maxTweetLength = 220;
 
 const safeTitle =
   (title || "").length > 70
