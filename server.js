@@ -1802,6 +1802,9 @@ const message = [
   .join("\n")
   .trim();
 
+  console.log("X MESSAGE DEBUG:");
+console.log(message);
+
   if (!message) {
     throw new Error("Missing X post message");
   }
