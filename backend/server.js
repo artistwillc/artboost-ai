@@ -2715,7 +2715,7 @@ app.listen(PORT, async () => {
     facebookConnection.connected
   );
 
-  console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
+  console.log("LIVE SERVER VERSION: INSTAGRAM SCHEDULER FIX 1");
 
   console.log(
     `Stripe configured: ${
