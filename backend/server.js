@@ -1785,21 +1785,28 @@ ${description}`;
 async function publishXPost({ title, description, productLink, imageUrl }) {
   const hashtags = "#RatFink #HotRodArt #CustomArtwork";
 
+const maxTweetLength = 260;
+
+const safeTitle =
+  (title || "").length > 70
+    ? (title || "").substring(0, 67).trim() + "..."
+    : title || "";
+
 const reservedLength =
-  title.length +
+  safeTitle.length +
   hashtags.length +
-  6;
+  4;
 
-const maxDescriptionLength = Math.max(40, 279 - reservedLength);
+const maxDescriptionLength = Math.max(40, maxTweetLength - reservedLength);
 
-const shortDescription =
+const safeDescription =
   (description || "").length > maxDescriptionLength
-    ? description.substring(0, maxDescriptionLength).trim() + "..."
+    ? (description || "").substring(0, maxDescriptionLength).trim().replace(/\s+\S*$/, "") + "..."
     : description || "";
 
 const message = [
-  title,
-  shortDescription,
+  safeTitle,
+  safeDescription,
   hashtags,
 ]
   .filter(Boolean)
@@ -1843,7 +1850,7 @@ console.log(message);
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      text: message.slice(0, 279),
+      text: message,
     }),
   });
 
