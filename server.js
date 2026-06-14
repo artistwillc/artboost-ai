@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { v2 as cloudinary } from "cloudinary";
 import OAuth from "oauth-1.0a";
 import CryptoJS from "crypto-js";
-
+ 
 dotenv.config({ override: true });
  
 const app = express();
@@ -467,53 +467,53 @@ app.get("/", (req, res) => {
 });
  
 app.get("/delete-user-data", (req, res) => {
-
+ 
   res.send(`
-
+ 
   <html>
-
+ 
   <body style="
     font-family:Arial;
     max-width:700px;
     margin:40px auto;
     padding:20px;
   ">
-
+ 
   <h1>ArtBoost AI User Data Deletion</h1>
-
+ 
   <p>
   Users may request deletion of ArtBoost AI account data.
   </p>
-
+ 
   <p>
   Contact:
   support@artboost-ai.com
   </p>
-
+ 
   <ul>
-
+ 
     <li>Name</li>
-
+ 
     <li>Email</li>
-
+ 
     <li>Connected Social Accounts</li>
-
+ 
   </ul>
-
+ 
   <p>
-
+ 
   Requests processed within 30 days.
-
+ 
   </p>
-
+ 
   </body>
-
+ 
   </html>
-
+ 
   `);
-
+ 
 });
-
+ 
  app.post("/notifications/create", async (req, res) => {
   try {
     const { userId, title, message, type } = req.body;
@@ -883,7 +883,7 @@ app.get("/auth/pinterest", (req, res) => {
  
   res.redirect(authUrl.toString());
 });
-
+ 
 let facebookConnection = {
   connected: false,
   token: null,
@@ -891,14 +891,67 @@ let facebookConnection = {
   connectedAt: null,
 };
 
-app.get("/auth/facebook", (req, res) => {
+async function saveFacebookConnection(tokenData) {
+  const connectedAt = new Date().toISOString();
 
+  facebookConnection = {
+    connected: true,
+    token: tokenData.access_token,
+    expiresIn: tokenData.expires_in || null,
+    connectedAt,
+  };
+
+  const { error } = await supabase
+    .from("social_connections")
+    .upsert(
+      {
+        platform: "facebook",
+        connected: true,
+        access_token: tokenData.access_token,
+        expires_in: tokenData.expires_in || null,
+        connected_at: connectedAt,
+        updated_at: connectedAt,
+      },
+      { onConflict: "platform" }
+    );
+
+  if (error) {
+    console.log("Facebook token save failed:", error.message);
+  } else {
+    console.log("Facebook token saved to Supabase");
+  }
+}
+
+async function loadFacebookConnection() {
+  const { data, error } = await supabase
+    .from("social_connections")
+    .select("*")
+    .eq("platform", "facebook")
+    .maybeSingle();
+
+  if (error || !data?.access_token) {
+    console.log("No saved Facebook connection found.");
+    return;
+  }
+
+  facebookConnection = {
+    connected: true,
+    token: data.access_token,
+    expiresIn: data.expires_in || null,
+    connectedAt: data.connected_at || null,
+  };
+
+  console.log("Facebook saved connection loaded: true");
+}
+ 
+app.get("/auth/facebook", (req, res) => {
+ 
   const APP_ID =
     process.env.FACEBOOK_APP_ID;
-
+ 
   const REDIRECT_URI =
     "https://artboost-ai.onrender.com/auth/facebook/callback";
-
+ 
   const url =
     `https://www.facebook.com/v23.0/dialog/oauth` +
     `?client_id=${APP_ID}` +
@@ -907,9 +960,9 @@ app.get("/auth/facebook", (req, res) => {
     `&response_type=code`;
 console.log("FACEBOOK ROUTE VERSION 2:", url);
   res.redirect(url);
-
+ 
 });
-
+ 
 // ================================
 // Instagram Status/Test Routes
 // ================================
@@ -936,11 +989,11 @@ postTestRouteAdded: true,
 app.post("/x/post", async (req, res) => {
   try {
     const { message, imageUrl } = req.body;
-
+ 
     if (!message) {
       return res.status(400).json({ error: "Missing message" });
     }
-
+ 
     const oauth = OAuth({
       consumer: {
         key: process.env.X_API_KEY,
@@ -951,19 +1004,19 @@ app.post("/x/post", async (req, res) => {
         return CryptoJS.HmacSHA1(baseString, key).toString(CryptoJS.enc.Base64);
       },
     });
-
+ 
     const token = {
       key: process.env.X_ACCESS_TOKEN,
       secret: process.env.X_ACCESS_TOKEN_SECRET,
     };
-
+ 
     const requestData = {
   url: "https://api.twitter.com/2/tweets",
   method: "POST",
 };
-
+ 
     const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
-
+ 
     const response = await fetch(requestData.url, {
       method: "POST",
       headers: {
@@ -974,14 +1027,14 @@ app.post("/x/post", async (req, res) => {
         text: message,
       }),
     });
-
+ 
     const data = await response.json();
-
+ 
     if (!response.ok) {
       console.log("X Post Error:", data);
       return res.status(response.status).json(data);
     }
-
+ 
     res.json({
       success: true,
       platform: "x",
@@ -990,7 +1043,7 @@ app.post("/x/post", async (req, res) => {
     
   } catch (err) {
   console.error("X post error:", err);
-
+ 
   res.status(500).json({
     error: "fetch failed",
     message: err.message,
@@ -999,14 +1052,16 @@ app.post("/x/post", async (req, res) => {
   });
 }
 });
-
+ 
 app.get("/will-test", (req, res) => {
   res.json({
     works: true,
+    version: "INSTAGRAM DEBUG 2",
+    commit: "7d9dd16",
     time: new Date().toISOString()
   });
 });
-
+ 
 app.get("/x/post-test", async (req, res) => {
   try {
     const response = await fetch(
@@ -1018,9 +1073,9 @@ app.get("/x/post-test", async (req, res) => {
         },
       }
     );
-
+ 
     const data = await response.text();
-
+ 
     res.json({
       status: response.status,
       data,
@@ -1035,7 +1090,7 @@ app.get("/x/post-test", async (req, res) => {
   app.get("/instagram/status", (req, res) => {
   const hasToken = !!process.env.INSTAGRAM_ACCESS_TOKEN;
   const hasUserId = !!process.env.INSTAGRAM_USER_ID;
-
+ 
   res.json({
     connected: hasToken && hasUserId,
     hasToken,
@@ -1047,25 +1102,25 @@ app.get("/x/post-test", async (req, res) => {
         : "Missing Instagram environment variables.",
   });
 });
-
+ 
 app.get("/instagram/test", async (req, res) => {
   try {
     const token = process.env.INSTAGRAM_ACCESS_TOKEN;
-
+ 
     if (!token) {
       return res.status(400).json({ error: "Missing INSTAGRAM_ACCESS_TOKEN" });
     }
-
+ 
     const response = await fetch(
       `https://graph.instagram.com/me?fields=id,username,account_type&access_token=${encodeURIComponent(token)}`
     );
-
+ 
     const data = await response.json();
-
+ 
     if (!response.ok) {
       return res.status(response.status).json(data);
     }
-
+ 
     res.json({
       ok: true,
       instagram: data,
@@ -1078,85 +1133,74 @@ app.get("/instagram/test", async (req, res) => {
     });
   }
 });
-
+ 
 app.get("/facebook/debug-auth-url", (req, res) => {
-
+ 
   const APP_ID =
     process.env.FACEBOOK_APP_ID;
-
+ 
   const REDIRECT_URI =
     "https://artboost-ai.onrender.com/auth/facebook/callback";
-
+ 
   const url =
     `https://www.facebook.com/v23.0/dialog/oauth` +
     `?client_id=${APP_ID}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
     `&scope=email,pages_read_engagement,pages_show_list,pages_manage_posts` +
     `&response_type=code`;
-
+ 
   res.json({ url });
-
+ 
 });
-
+ 
 app.get("/auth/facebook/callback", async (req, res) => {
-
+ 
   try {
-
+ 
     const code =
       req.query.code;
-
+ 
     if (!code) {
-
+ 
       return res
         .status(400)
         .send(
           "Missing Facebook authorization code"
         );
-
+ 
     }
-
+ 
     const tokenResponse =
       await fetch(
         `https://graph.facebook.com/v23.0/oauth/access_token?client_id=${process.env.FACEBOOK_APP_ID}&redirect_uri=https://artboost-ai.onrender.com/auth/facebook/callback&client_secret=${process.env.FACEBOOK_APP_SECRET}&code=${code}`
       );
-
+ 
     const tokenData =
       await tokenResponse.json();
-
+ 
     if (!tokenData.access_token) {
-
+ 
       console.log(
         "Facebook Token Error:",
         tokenData
       );
-
+ 
       return res
         .status(400)
         .send(
           "Facebook token exchange failed."
         );
-
+ 
     }
-
-    facebookConnection = {
-
-      connected: true,
-
-      token:
-        tokenData.access_token,
-
-      expiresIn:
-        tokenData.expires_in,
-
-      connectedAt:
-        new Date().toISOString(),
-
-    };
-
+ 
+    await saveFacebookConnection(tokenData);
+ 
+    console.log("Facebook token received and save attempted");
+ 
     console.log(
       "Facebook Connected Successfully"
     );
-
+ 
     res.send(`
       <html>
         <body style="font-family:Arial;padding:40px;">
@@ -1165,152 +1209,152 @@ app.get("/auth/facebook/callback", async (req, res) => {
         </body>
       </html>
     `);
-
+ 
   }
-
+ 
   catch (err) {
-
+ 
     console.error(err);
-
+ 
     res
       .status(500)
       .send(
         "Facebook connection failed"
       );
-
+ 
   }
-
+ 
 });
-
+ 
 app.get("/facebook/pages", async (req, res) => {
-
+ 
   try {
-
+ 
     if (!facebookConnection.token) {
-
+ 
       return res
         .status(400)
         .json({
-
+ 
           error:
             "Missing Facebook access token"
-
+ 
         });
-
+ 
     }
-
+ 
     const response =
       await fetch(
-
+ 
         `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
-
+ 
       );
-
+ 
     const data =
-      await response.json();
+  await response.json();
 
-    res.json(data);
-
+res.json(data);
+ 
   }
-
+ 
   catch (err) {
-
+ 
     res
       .status(500)
       .json({
-
+ 
         error:
           err.message
-
+ 
       });
-
+ 
   }
-
+ 
 });
-
+ 
 app.get("/facebook/permissions", async (req, res) => {
   if (!facebookConnection.token) {
     return res.status(400).json({ error: "Facebook not connected" });
   }
-
+ 
   const response = await fetch(
     `https://graph.facebook.com/v23.0/me/permissions?access_token=${facebookConnection.token}`
   );
-
+ 
   const data = await response.json();
   res.json(data);
 });
-
+ 
 app.post("/facebook/post", async (req, res) => {
-
+ 
   try {
-
+ 
     const {
       message,
       imageUrl,
       pageId
     } = req.body;
-
+ 
     if (!facebookConnection.token) {
-
+ 
       return res.status(400).json({
         error: "Facebook not connected"
       });
-
+ 
     }
-
+ 
     const pagesResponse =
       await fetch(
         `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
       );
-
+ 
     const pagesData =
       await pagesResponse.json();
-
+ 
     if (!pagesData.data || !pagesData.data.length) {
-
+ 
       return res.status(400).json({
         error: "No Facebook Pages found"
       });
-
+ 
     }
-
+ 
     const page =
       pageId
         ? pagesData.data.find(
             (p) => p.id === pageId
           )
         : pagesData.data[0];
-
+ 
     if (!page) {
-
+ 
       return res.status(400).json({
         error: "Selected Facebook Page not found"
       });
-
+ 
     }
-
+ 
     let postUrl =
       `https://graph.facebook.com/v23.0/${page.id}/feed`;
-
+ 
     let body = {
       message,
       access_token: page.access_token,
     };
-
+ 
     if (imageUrl) {
-
+ 
       postUrl =
         `https://graph.facebook.com/v23.0/${page.id}/photos`;
-
+ 
       body = {
         url: imageUrl,
         caption: message,
         access_token: page.access_token,
       };
-
+ 
     }
-
+ 
     const postResponse =
       await fetch(postUrl, {
         method: "POST",
@@ -1319,61 +1363,61 @@ app.post("/facebook/post", async (req, res) => {
         },
         body: JSON.stringify(body),
       });
-
+ 
     const postData =
       await postResponse.json();
-
+ 
     if (postData.error) {
-
+ 
       console.log(
         "Facebook Post Error:",
         postData.error
       );
-
+ 
       return res.status(500).json({
         error: postData.error,
       });
-
+ 
     }
-
+ 
     res.json(postData);
-
+ 
   }
-
+ 
   catch (err) {
-
+ 
     console.error(err);
-
+ 
     res.status(500).json({
       error: err.message,
     });
-
+ 
   }
-
+ 
 });
-
+ 
 // ================================
 // Instagram Publish Route
 // ================================
 app.post("/instagram/post", async (req, res) => {
   try {
     const { message, imageUrl } = req.body;
-
+ 
     const instagramUserId = process.env.INSTAGRAM_USER_ID;
     const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
-
+ 
     if (!instagramUserId || !accessToken) {
       return res.status(400).json({
         error: "Instagram not configured",
       });
     }
-
+ 
     if (!imageUrl) {
       return res.status(400).json({
         error: "Instagram requires an imageUrl to publish.",
       });
     }
-
+ 
     const createContainerResponse = await fetch(
       `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
       {
@@ -1388,21 +1432,21 @@ app.post("/instagram/post", async (req, res) => {
         }),
       }
     );
-
+ 
     const createContainerData = await createContainerResponse.json();
-
+ 
     if (createContainerData.error) {
       console.log("Instagram Container Error:", createContainerData.error);
-
+ 
       return res.status(500).json({
         error: createContainerData.error,
       });
     }
-
+ 
     const creationId = createContainerData.id;
-
+ 
     await new Promise((resolve) => setTimeout(resolve, 8000));
-
+ 
     const publishResponse = await fetch(
       `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
       {
@@ -1416,17 +1460,17 @@ app.post("/instagram/post", async (req, res) => {
         }),
       }
     );
-
+ 
     const publishData = await publishResponse.json();
-
+ 
     if (publishData.error) {
       console.log("Instagram Publish Error:", publishData.error);
-
+ 
       return res.status(500).json({
         error: publishData.error,
       });
     }
-
+ 
     res.json({
       success: true,
       platform: "instagram",
@@ -1435,36 +1479,35 @@ app.post("/instagram/post", async (req, res) => {
     });
   } catch (err) {
     console.error("Instagram post error:", err);
-
+ 
     res.status(500).json({
       error: err.message,
     });
   }
 });
-
+ 
 // PASTE THE NEW ROUTE HERE
-
 app.get("/facebook/test", (req, res) => {
-
   res.json({
-
-    connected:
-      facebookConnection.connected,
-
-    hasToken:
-      Boolean(
-        facebookConnection.token
-      ),
-
-    readyForPages:false,
-
-    message:
-      "Facebook login works. Page publishing requires Meta Page permissions."
-
+    connected: facebookConnection.connected,
+    connectedAt: facebookConnection.connectedAt || null,
+    hasToken: Boolean(facebookConnection.token),
   });
-
 });
-
+ 
+app.get("/x/credentials-check", (req, res) => {
+  res.json({
+    connected: true,
+    hasClientId: Boolean(process.env.X_CLIENT_ID),
+    hasClientSecret: Boolean(process.env.X_CLIENT_SECRET),
+    hasApiKey: Boolean(process.env.X_API_KEY),
+    hasApiSecret: Boolean(process.env.X_API_SECRET),
+    hasAccessToken: Boolean(process.env.X_ACCESS_TOKEN),
+    hasAccessTokenSecret: Boolean(process.env.X_ACCESS_TOKEN_SECRET),
+    message: "X credentials check complete.",
+  });
+});
+ 
 app.get("/auth/pinterest/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
@@ -1619,85 +1662,69 @@ async function publishPinterestPin({
  
   return pinData;
 }
-
+ 
 async function publishFacebookPost({
-
   title,
   description,
   productLink,
   imageUrl,
   pageId,
-
 }) {
-
   if (!facebookConnection.token) {
-
-    throw new Error(
-      "Facebook not connected"
-    );
-
+    throw new Error("Facebook not connected");
   }
 
-  const message = `
+  if (!pageId) {
+    throw new Error("Missing Facebook pageId for scheduled post");
+  }
 
-${title}
+  const pagesResponse = await fetch(
+    `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
+  );
+
+  const pagesData = await pagesResponse.json();
+
+  if (!pagesData.data || !pagesData.data.length) {
+    throw new Error("No Facebook Pages found");
+  }
+
+  const page = pagesData.data.find((p) => p.id === pageId);
+
+  if (!page) {
+    throw new Error("Selected Facebook Page not found");
+  }
+
+  const message = `${title}
 
 ${description}
 
-${productLink || ""}
+${productLink || ""}`;
 
-`;
-
-  const response =
-  await fetch(
-
-`https://graph.facebook.com/v23.0/${pageId}/photos`,
-
+  const response = await fetch(
+    `https://graph.facebook.com/v23.0/${page.id}/photos`,
     {
-
-      method:"POST",
-
-      headers:{
-        "Content-Type":
-        "application/json"
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-
-      body:JSON.stringify({
-
-        url:imageUrl,
-
-        caption:message,
-
-        access_token:
-        facebookConnection.token,
-
+      body: JSON.stringify({
+        url: imageUrl,
+        caption: message,
+        access_token: page.access_token,
       }),
-
     }
-
   );
 
-  const data =
-  await response.json();
+  const data = await response.json();
 
   if (data.error) {
-
-    throw new Error(
-      data.error.message
-    );
-
+    throw new Error(data.error.message);
   }
 
   return data;
-
 }
 
-async function publishInstagramPost({
-  title,
-  description,
-  productLink,
-  imageUrl,
-}) {
+async function publishInstagramPost({ title, description, imageUrl }) {
   const instagramUserId = process.env.INSTAGRAM_USER_ID;
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
 
@@ -1709,23 +1736,15 @@ async function publishInstagramPost({
     throw new Error("Instagram requires an imageUrl to publish.");
   }
 
-  const message = `
-${title || ""}
+  const message = `${title}
 
-${description || ""}
-
-${productLink || ""}
-
-Tap the link in bio to learn more.
-`;
+${description}`;
 
   const createContainerResponse = await fetch(
     `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image_url: imageUrl,
         caption: message,
@@ -1737,10 +1756,7 @@ Tap the link in bio to learn more.
   const createContainerData = await createContainerResponse.json();
 
   if (createContainerData.error) {
-    throw new Error(
-      createContainerData.error.message ||
-      "Instagram container creation failed"
-    );
+    throw new Error(createContainerData.error.message);
   }
 
   await new Promise((resolve) => setTimeout(resolve, 8000));
@@ -1749,9 +1765,7 @@ Tap the link in bio to learn more.
     `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         creation_id: createContainerData.id,
         access_token: accessToken,
@@ -1762,18 +1776,65 @@ Tap the link in bio to learn more.
   const publishData = await publishResponse.json();
 
   if (publishData.error) {
-    throw new Error(
-      publishData.error.message ||
-      "Instagram publish failed"
-    );
+    throw new Error(publishData.error.message);
   }
 
-  return {
-    success: true,
-    platform: "instagram",
-    creationId: createContainerData.id,
-    result: publishData,
+  return publishData;
+}
+
+async function publishXPost({ title, description, productLink, imageUrl }) {
+  const message = `${title}
+
+${description}
+
+${productLink || ""}`.trim();
+
+  if (!message) {
+    throw new Error("Missing X post message");
+  }
+
+  const oauth = OAuth({
+    consumer: {
+      key: process.env.X_API_KEY,
+      secret: process.env.X_API_SECRET,
+    },
+    signature_method: "HMAC-SHA1",
+    hash_function(baseString, key) {
+      return CryptoJS.HmacSHA1(baseString, key).toString(CryptoJS.enc.Base64);
+    },
+  });
+
+  const token = {
+    key: process.env.X_ACCESS_TOKEN,
+    secret: process.env.X_ACCESS_TOKEN_SECRET,
   };
+
+  const requestData = {
+    url: "https://api.twitter.com/2/tweets",
+    method: "POST",
+  };
+
+  const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
+
+  const response = await fetch(requestData.url, {
+    method: "POST",
+    headers: {
+      ...authHeader,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text: message.slice(0, 280),
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.log("X Scheduled Post Error:", data);
+    throw new Error(JSON.stringify(data));
+  }
+
+  return data;
 }
  
 app.post("/pinterest/create-pin", async (req, res) => {
@@ -1819,19 +1880,22 @@ app.post("/pinterest/create-pin", async (req, res) => {
 app.post("/schedule-campaign", async (req, res) => {
   try {
     const {
-      userId,
-      title,
-      description,
-      imageUrl,
-      productLink,
-      boardId,
-      publishAt,
-      platform,
-      repeatType,
-      nextRunAt,
-      repeatUntil,
-    } = req.body;
- 
+  userId,
+  title,
+  description,
+  imageUrl,
+  productLink,
+  boardId,
+  pageId,
+  publishAt,
+  platform,
+  repeatType,
+  nextRunAt,
+  repeatUntil,
+} = req.body;
+
+console.log("SCHEDULE REQUEST PLATFORM:", platform);
+
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         error: "Missing title, description, or publishAt.",
@@ -1852,6 +1916,7 @@ app.post("/schedule-campaign", async (req, res) => {
         image_url: imageUrl || null,
         product_link: productLink || null,
         board_id: boardId || null,
+        page_id: pageId || null,
         publish_at: publishAt,
         status: "scheduled",
         campaign_status: "active",
@@ -2072,11 +2137,15 @@ async function runScheduledCampaigns() {
         .eq("id", campaign.id);
  
       let publishData = null;
+ 
+const platform = String(campaign.platform || "").trim().toLowerCase();
 
-      console.log("SCHEDULER DEBUG platform:", campaign.platform);
-console.log("SCHEDULER DEBUG id:", campaign.id);
-
-const platform = String(campaign.platform || "").toLowerCase();
+console.log(
+  "SCHEDULER DEBUG:",
+  "id =", campaign.id,
+  "raw platform =", campaign.platform,
+  "normalized =", platform
+);
 
 if (platform === "facebook") {
   publishData = await publishFacebookPost({
@@ -2087,13 +2156,30 @@ if (platform === "facebook") {
     pageId: campaign.page_id,
   });
 } else if (platform === "instagram") {
+  console.log("Publishing Instagram campaign:", campaign.id);
+
   publishData = await publishInstagramPost({
+    title: campaign.title,
+    description: campaign.description,
+    imageUrl: campaign.image_url,
+  });
+} else if (platform === "x") {
+  console.log("Publishing X campaign:", campaign.id);
+
+  publishData = await publishXPost({
     title: campaign.title,
     description: campaign.description,
     productLink: campaign.product_link,
     imageUrl: campaign.image_url,
   });
-} else if (platform === "pinterest") {
+} else {
+  console.log(
+    "Publishing Pinterest campaign:",
+    campaign.id,
+    "platform =",
+    campaign.platform
+  );
+
   publishData = await publishPinterestPin({
     boardId: campaign.board_id,
     title: campaign.title,
@@ -2101,8 +2187,6 @@ if (platform === "facebook") {
     link: campaign.product_link,
     imageUrl: campaign.image_url,
   });
-} else {
-  throw new Error(`Unsupported scheduled platform: ${campaign.platform}`);
 }
  
       const repeatType = campaign.repeat_type || "one_time";
@@ -2191,6 +2275,8 @@ if (platform === "facebook") {
         message: `"${campaign.title}" failed to publish. ${err.message}`,
         type: "error",
       });
+console.log("SCHEDULER PLATFORM DEBUG:", campaign.id, campaign.platform);
+     
       console.log("Scheduled campaign failed:", campaign.id, err.message);
     }
   }
@@ -2229,34 +2315,206 @@ app.post("/generate", upload.single("image"), async (req, res) => {
 You are ArtBoost AI, a platform-specific marketing assistant for artists and print-on-demand sellers.
  
 Analyze the uploaded artwork and generate content ONLY for this selected platform:
+ 
 ${platform}
  
 Use this writing style/tone:
+ 
 ${stylePreset}
  
 Product/shop link:
+ 
 ${productLink || "No product link provided"}
  
-IMPORTANT RULES:
+STRICT OUTPUT FORMAT
+ 
+You must return exactly these 4 sections and nothing else:
+ 
+TITLE:
+<content>
+ 
+DESCRIPTION:
+<content>
+ 
+HASHTAGS:
+<hashtags>
+ 
+CTA:
+<content>
+ 
+Do not add any extra headings.
+Do not add explanations.
+Do not add notes.
+Do not add introductory text.
+Do not add closing text.
+ 
+IMPORTANT RULES
+ 
 - Do NOT create content for any other platform.
 - Do NOT create multi-platform captions.
-- Return only these exact four sections:
+- Do NOT use markdown.
+- Do NOT use bullet points.
+- Do NOT wrap anything in quotes.
+- Do NOT mention that you analyzed the image.
+ 
+INSTAGRAM HARD RULES
+ 
+When platform = Instagram:
+ 
+- URLs are forbidden.
+- Website addresses are forbidden.
+- Product links are forbidden.
+- Domain names are forbidden.
+- Shopify links are forbidden.
+- "https://" is forbidden.
+- "http://" is forbidden.
+- "www." is forbidden.
+- ".com" is forbidden.
+- ".net" is forbidden.
+- ".org" is forbidden.
+- ".shop" is forbidden.
+- ".store" is forbidden.
+ 
+The DESCRIPTION must contain zero links.
+ 
+The CTA must contain zero links.
+ 
+Use only link-in-bio language.
+ 
+If any URL appears anywhere in an Instagram response, the response is invalid and must be regenerated before returning.
  
 TITLE:
 Create one strong ${platform}-optimized title.
  
+Make it attention-grabbing, emotionally engaging, and platform appropriate.
+ 
 DESCRIPTION:
+ 
 Write one polished ${platform} description or caption for this artwork.
  
+ABSOLUTE RULES:
+ 
+- Never include a URL.
+- Never include a website address.
+- Never include a product link.
+- Never include a domain name.
+- Never include "shop now at".
+- Never include "click here".
+- Never include "check it out here".
+- Never include any variation of a product link.
+
+For Instagram:
+
+The DESCRIPTION must contain zero links.
+
+Forbidden phrases:
+- Shop here
+- Shop now
+- Buy now
+- Get yours here
+- Check it out here
+- Visit
+- Visit our store
+- Click here
+- Link:
+- URL:
+- Grab yours now
+- Grab yours today
+- Get yours now
+- Get yours today
+- Buy yours today
+- Order yours today
+- Tap here
+- Click now
+
+If any of these phrases appear, regenerate the DESCRIPTION.
+ 
+Focus on:
+- The artwork
+- The style
+- The emotion
+- The audience
+- The product benefits
+ 
 HASHTAGS:
-Give strong hashtags for ${platform} only.
+ 
+Generate 10-15 strong hashtags for ${platform}.
+ 
+Each hashtag must be on its own line.
+ 
+Example:
+ 
+#Art
+#CustomArtwork
+#StickerDesign
+#HotRodArt
+#RatFink
+ 
+Never place hashtags on the same line.
+ 
+Never separate hashtags with spaces.
+ 
+Never separate hashtags with commas.
  
 CTA:
+ 
 Write one clear call-to-action for ${platform}.
  
-If a product link is provided, include it naturally.
+Instagram:
+
+Use only link-in-bio language.
+
+NEVER include:
+- URLs
+- Product links
+- Website addresses
+- Shopify links
+- Domain names
+- https://
+- http://
+- www.
+
+Valid examples:
+
+Tap the link in bio to grab yours today.
+
+Tap the link in bio to claim yours now.
+
+Get yours today through the link in bio.
+ 
+Facebook:
+
+May include the product link.
+
+Pinterest:
+ 
+May include the product link.
+ 
+X:
+ 
+May include the product link.
+ 
+FINAL VALIDATION CHECK
+ 
+Before returning the response:
+ 
+1. Verify TITLE exists.
+2. Verify DESCRIPTION exists.
+3. Verify HASHTAGS exists.
+4. Verify CTA exists.
+5. Verify hashtags are one per line.
+6. Verify Instagram contains no URLs.
+7. Verify Instagram contains no domain names.
+8. Verify Instagram CTA uses link-in-bio wording.
+9. Verify DESCRIPTION never contains a product link.
+10. If any rule fails, regenerate the response before returning it.
+11. Verify Instagram CTA contains no URL.
+12. Verify Instagram CTA contains no domain name.
+13. Verify Instagram CTA contains no product link.
+14. If Instagram CTA contains a URL, regenerate the response.
+ 
 Keep the response clean, visually appealing, and ready to copy.
-              `,
+`,
             },
             {
               type: "input_image",
@@ -2266,11 +2524,177 @@ Keep the response clean, visually appealing, and ready to copy.
         },
       ],
     });
- 
-    res.json({
-      result: response.output_text,
-      imageUrl: hostedImageUrl,
-    });
+
+let finalOutput = response.output_text;
+
+if (platform === "Instagram") {
+  finalOutput = finalOutput.replace(
+    /https?:\/\/[^\s]+/gi,
+    ""
+  );
+
+  finalOutput = finalOutput.replace(
+    /www\.[^\s]+/gi,
+    ""
+  );
+
+  finalOutput = finalOutput.replace(
+    /[a-zA-Z0-9.-]+\.(com|net|org|shop|store)[^\s]*/gi,
+    ""
+  );
+
+  finalOutput = finalOutput.replace(
+    /click the link in bio/gi,
+    "Tap the link in bio"
+  );
+
+  finalOutput = finalOutput.replace(
+    /swipe up/gi,
+    "Tap the link in bio"
+  );
+
+  finalOutput = finalOutput.replace(
+  /grab yours here:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /shop now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /shop here:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /check it out here:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /visit our store:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /visit:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours today:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /get yours now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /get yours today:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /buy yours today:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /order yours today:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /tap here:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /click now:?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours now at/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /grab yours here at/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /get yours now at/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /shop now at/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /\bat\s+and\b/gi,
+  "and"
+);
+
+finalOutput = finalOutput.replace(
+  /\s+at\s*$/gim,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /!\s*at\b/gi,
+  "!"
+);
+
+finalOutput = finalOutput.replace(
+  /shop now/gi,
+  "Tap the link in bio"
+);
+
+finalOutput = finalOutput.replace(
+  /(grab|snag|get|buy|order)\s+yours?\s+(now|today|here)\s*(at)?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /\s+and\s+burn\s+rubber\s+in\s+style\.?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /check it out\s*👉?/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(
+  /check it out/gi,
+  ""
+);
+
+finalOutput = finalOutput.replace(/\s{2,}/g, " ");
+}
+
+res.json({
+  result: finalOutput,
+  imageUrl: hostedImageUrl,
+});
   } catch (err) {
     console.error("Generate error:", err);
     res.status(500).json({
@@ -2367,12 +2791,24 @@ Rules:
   }
 });
  
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+
   console.log(`Server running on port ${PORT}`);
   console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
-  console.log("LIVE SERVER VERSION: SCHEDULER DEBUG 1");
+
+  await loadFacebookConnection();
+
   console.log(
-    `Stripe configured: ${process.env.STRIPE_SECRET_KEY ? "yes" : "no"}`
+    "Facebook saved connection loaded:",
+    facebookConnection.connected
+  );
+
+  console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
+
+  console.log(
+    `Stripe configured: ${
+      process.env.STRIPE_SECRET_KEY ? "yes" : "no"
+    }`
   );
   console.log(
     `Stripe webhook configured: ${
@@ -2387,4 +2823,3 @@ app.listen(PORT, () => {
     }`
   );
 });
-
