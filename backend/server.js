@@ -1056,6 +1056,8 @@ app.post("/x/post", async (req, res) => {
 app.get("/will-test", (req, res) => {
   res.json({
     works: true,
+    version: "INSTAGRAM DEBUG 2",
+    commit: "7d9dd16",
     time: new Date().toISOString()
   });
 });
