@@ -2289,6 +2289,15 @@ if (platform === "facebook") {
     description: campaign.description,
     imageUrl: campaign.image_url,
   });
+} else if (platform === "x") {
+  console.log("Publishing X campaign:", campaign.id);
+
+  publishData = await publishXPost({
+    title: campaign.title,
+    description: campaign.description,
+    productLink: campaign.product_link,
+    imageUrl: campaign.image_url,
+  });
 } else {
   console.log(
     "Publishing Pinterest campaign:",
