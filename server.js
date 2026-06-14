@@ -1783,11 +1783,24 @@ ${description}`;
 }
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
-  const message = `${title}
+  const shortDescription =
+  (description || "").length > 140
+    ? description.substring(0, 140).trim() + "..."
+    : (description || "");
 
-${description}
+const hashtags = "#RatFink #HotRodArt #CustomArtwork";
 
-${productLink || ""}`.trim();
+const message = [
+  title,
+  "",
+  shortDescription,
+  "",
+  hashtags,
+  productLink || "",
+]
+  .filter(Boolean)
+  .join("\n")
+  .trim();
 
   if (!message) {
     throw new Error("Missing X post message");
@@ -1823,7 +1836,7 @@ ${productLink || ""}`.trim();
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      text: message.slice(0, 280),
+      text: message.slice(0, 279),
     }),
   });
 
