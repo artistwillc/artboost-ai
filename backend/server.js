@@ -1784,6 +1784,7 @@ ${description}`;
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
   const hashtags = "#RatFink #HotRodArt #CustomArtwork";
+  const link = productLink || "";
 
 const maxTweetLength = 220;
 
@@ -1808,6 +1809,7 @@ const message = [
   safeTitle,
   safeDescription,
   hashtags,
+  link,
 ]
   .filter(Boolean)
   .join("\n")
