@@ -1697,7 +1697,6 @@ async function publishFacebookPost({
   const message = `${title}
 
 ${description}
-<<<<<<< HEAD
 
 ${productLink || ""}`;
 
@@ -1837,8 +1836,6 @@ ${productLink || ""}`.trim();
 
   return data;
 }
-=======
->>>>>>> 337b1d3 (Save backend progress)
 
 ${productLink || ""}`;
 
@@ -1864,6 +1861,64 @@ ${productLink || ""}`;
   }
 
   return data;
+}
+
+async function publishInstagramPost({ title, description, imageUrl }) {
+  const instagramUserId = process.env.INSTAGRAM_USER_ID;
+  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+  if (!instagramUserId || !accessToken) {
+    throw new Error("Instagram not configured");
+  }
+
+  if (!imageUrl) {
+    throw new Error("Instagram requires an imageUrl to publish.");
+  }
+
+  const message = `${title}
+
+${description}`;
+
+  const createContainerResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        caption: message,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const createContainerData = await createContainerResponse.json();
+
+  if (createContainerData.error) {
+    throw new Error(createContainerData.error.message);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 8000));
+
+  const publishResponse = await fetch(
+    `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        creation_id: createContainerData.id,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const publishData = await publishResponse.json();
+
+  if (publishData.error) {
+    throw new Error(publishData.error.message);
+  }
+
+  return publishData;
 }
  
 app.post("/pinterest/create-pin", async (req, res) => {
@@ -1922,13 +1977,10 @@ app.post("/schedule-campaign", async (req, res) => {
   nextRunAt,
   repeatUntil,
 } = req.body;
-<<<<<<< HEAD
 
 console.log("SCHEDULE REQUEST PLATFORM:", platform);
 
-=======
  
->>>>>>> 337b1d3 (Save backend progress)
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         error: "Missing title, description, or publishAt.",
@@ -2171,72 +2223,54 @@ async function runScheduledCampaigns() {
  
       let publishData = null;
  
-<<<<<<< HEAD
-const platform = String(campaign.platform || "").trim().toLowerCase();
+      const platform = String(campaign.platform || "").trim().toLowerCase();
 
-console.log(
-  "SCHEDULER DEBUG:",
-  "id =", campaign.id,
-  "raw platform =", campaign.platform,
-  "normalized =", platform
-);
-const platform = String(campaign.platform || "").toLowerCase();
+      console.log(
+        "SCHEDULER DEBUG:",
+        "id =", campaign.id,
+        "raw platform =", campaign.platform,
+        "normalized =", platform
+      );
 
-if (platform === "facebook") {
-=======
-if (campaign.platform === "Facebook") {
->>>>>>> 337b1d3 (Save backend progress)
-  publishData = await publishFacebookPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-    pageId: campaign.page_id,
-  });
-<<<<<<< HEAD
-} else if (platform === "instagram") {
-  console.log("Publishing Instagram campaign:", campaign.id);
-
-  publishData = await publishInstagramPost({
-    title: campaign.title,
-    description: campaign.description,
-    imageUrl: campaign.image_url,
-  });
-} else if (platform === "x") {
-  console.log("Publishing X campaign:", campaign.id);
-
-  publishData = await publishXPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
-} else {
-  console.log(
-    "Publishing Pinterest campaign:",
-    campaign.id,
-    "platform =",
-    campaign.platform
-  );
-
-  publishData = await publishInstagramPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
-} else if (platform === "pinterest") {
-=======
-} else {
->>>>>>> 337b1d3 (Save backend progress)
-  publishData = await publishPinterestPin({
-    boardId: campaign.board_id,
-    title: campaign.title,
-    description: campaign.description,
-    link: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
-}
+      if (platform === "facebook") {
+        publishData = await publishFacebookPost({
+          title: campaign.title,
+          description: campaign.description,
+          productLink: campaign.product_link,
+          imageUrl: campaign.image_url,
+          pageId: campaign.page_id,
+        });
+      } else if (platform === "instagram") {
+        console.log("Publishing Instagram campaign:", campaign.id);
+        publishData = await publishInstagramPost({
+          title: campaign.title,
+          description: campaign.description,
+          imageUrl: campaign.image_url,
+        });
+      } else if (platform === "x") {
+        console.log("Publishing X campaign:", campaign.id);
+        publishData = await publishXPost({
+          title: campaign.title,
+          description: campaign.description,
+          productLink: campaign.product_link,
+          imageUrl: campaign.image_url,
+        });
+      } else if (platform === "pinterest") {
+        publishData = await publishPinterestPin({
+          boardId: campaign.board_id,
+          title: campaign.title,
+          description: campaign.description,
+          link: campaign.product_link,
+          imageUrl: campaign.image_url,
+        });
+      } else {
+        console.log(
+          "Unknown campaign platform:",
+          campaign.id,
+          "platform =",
+          campaign.platform
+        );
+      }
  
       const repeatType = campaign.repeat_type || "one_time";
       let nextRunDate = null;
@@ -2905,11 +2939,8 @@ app.listen(PORT, async () => {
     facebookConnection.connected
   );
 
-<<<<<<< HEAD
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
-=======
   console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
->>>>>>> 337b1d3 (Save backend progress)
 
   console.log(
     `Stripe configured: ${
