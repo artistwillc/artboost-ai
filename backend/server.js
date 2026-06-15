@@ -2959,7 +2959,9 @@ Final check:
 - Facebook message should be longer, conversational, and may include the product link.
 - Instagram message must NOT include URLs, website addresses, domains, or product links.
 - Instagram must use link-in-bio wording only.
-- Instagram should include 10 to 15 hashtags.
+- Instagram should include exactly 12 to 15 hashtags.
+- Instagram caption should be 50 to 100 words and consist of 2 to 4 complete sentences.
+- Instagram caption should feel like authentic social media storytelling, not a short product listing.
 - X message must be short, punchy, under 280 characters, and may include the product link.
 - X should use no more than 3 hashtags.
 - Do not copy the X message into the other platforms.
