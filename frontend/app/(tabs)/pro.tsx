@@ -828,36 +828,104 @@ const createXPost = async () => {
 
     setPublishing(true);
 
+    const safeDescription =
+  description.length > 80
+    ? description.substring(0, 77).replace(/\s+\S*$/, "") + "..."
+    : description;
+
+const shortTags = hashtags
+  .split(/\s+/)
+  .filter((tag) => tag.startsWith("#"))
+  .slice(0, 3)
+  .join(" ");
+
+const message = [
+  title,
+  safeDescription,
+  shortTags,
+  productLink,
+]
+  .filter(Boolean)
+  .join("\n\n")
+  .trim();
+
     const response = await fetch(`${BACKEND_URL}/x/post`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: `${title}\n\n${description}\n\n${productLink}`.slice(0, 280),
-      }),
+  message,
+  imageUrl,
+  productLink,
+}),
     });
 
     const data = await response.json();
 
     if (!response.ok || data.error) {
       throw new Error(
-        data.error?.message ||
-        data.error ||
-        "X publish failed"
+        data.error?.message || data.error || "X publish failed"
       );
     }
 
-    Alert.alert(
-      "X Published",
-      "Your artwork was successfully posted to X."
-    );
+    Alert.alert("X Published", "Your artwork was successfully posted to X.");
   } catch (err: any) {
     console.log(err);
 
     Alert.alert(
       "X Publish Failed",
       err.message || "Failed to publish to X."
+    );
+  } finally {
+    setPublishing(false);
+  }
+};
+
+const postEverywhere = async () => {
+  try {
+    if (!profile?.is_pro) {
+      Alert.alert("Pro Required", "Post Everywhere is a Pro feature.");
+      return;
+    }
+
+    if (!title || !description) {
+      Alert.alert("Missing Content", "Generate or enter campaign content first.");
+      return;
+    }
+
+    if (!imageUrl) {
+      Alert.alert("Missing Image URL", "A public image URL is required.");
+      return;
+    }
+
+    if (!selectedBoard) {
+      Alert.alert("Missing Pinterest Board", "Please select a Pinterest board first.");
+      return;
+    }
+
+    if (!selectedFacebookPage) {
+      Alert.alert("Missing Facebook Page", "Please select a Facebook Page first.");
+      return;
+    }
+
+    setPublishing(true);
+
+    await createPinterestPin();
+    await createFacebookPost();
+    await createInstagramPost();
+    await createXPost();
+
+    Alert.alert(
+      "Post Everywhere Complete",
+      "Your campaign was sent to Pinterest, Facebook, Instagram, and X."
+    );
+  } catch (err: any) {
+    console.log("Post Everywhere failed:", err);
+
+    Alert.alert(
+      "Post Everywhere Failed",
+      err.message || "One or more platforms failed to publish."
     );
   } finally {
     setPublishing(false);
@@ -1268,7 +1336,7 @@ Pinterest
       <View style={styles.automationGrid}>
         <Pressable
           style={styles.automationCard}
-          onPress={() => simulateProFeature("Post Everywhere")}
+          onPress={postEverywhere}
         >
           <Text style={styles.automationTitle}>Post Everywhere</Text>
           <Text style={styles.automationText}>
