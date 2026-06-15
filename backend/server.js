@@ -1783,42 +1783,12 @@ ${description}`;
 }
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
-  const hashtags = "#RatFink #HotRodArt #CustomArtwork";
-  const link = productLink || "";
+  const message = `${title}
 
-const maxTweetLength = 220;
+${description}
 
-const safeTitle =
-  (title || "").length > 70
-    ? (title || "").substring(0, 67).trim() + "..."
-    : title || "";
+${productLink || ""}`.trim();
 
-const reservedLength =
-  safeTitle.length +
-  hashtags.length +
-  link.length +
-  6;
-
-const maxDescriptionLength = Math.max(40, maxTweetLength - reservedLength);
-
-const safeDescription =
-  (description || "").length > maxDescriptionLength
-    ? (description || "").substring(0, maxDescriptionLength).trim().replace(/\s+\S*$/, "") + "..."
-    : description || "";
-
-const message = [
-  safeTitle,
-  safeDescription,
-  hashtags,
-  link,
-]
-  .filter(Boolean)
-  .join("\n")
-  .trim();
-
-console.log("X MESSAGE DEBUG:");
-console.log(message);
-  
   if (!message) {
     throw new Error("Missing X post message");
   }
@@ -1853,7 +1823,7 @@ console.log(message);
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      text: message,
+      text: message.slice(0, 280),
     }),
   });
 
@@ -2984,6 +2954,18 @@ Final check:
 - Instagram should feel visual and story-driven.
 - X should be short and punchy.
 - Return only valid JSON.
+- Pinterest title should be SEO-friendly and under 100 characters.
+- Pinterest description should be keyword-rich and sales-focused.
+- Facebook message should be longer, conversational, and may include the product link.
+- Instagram message must NOT include URLs, website addresses, domains, or product links.
+- Instagram must use link-in-bio wording only.
+- Instagram should include 10 to 15 hashtags.
+- X message must be short, punchy, under 280 characters, and may include the product link.
+- X should use no more than 3 hashtags.
+- Do not copy the X message into the other platforms.
+- Make each platform noticeably different.
+`,
+    });
 
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
