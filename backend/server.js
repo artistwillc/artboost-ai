@@ -1783,12 +1783,42 @@ ${description}`;
 }
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
-  const message = `${title}
+  const hashtags = "#RatFink #HotRodArt #CustomArtwork";
+  const link = productLink || "";
 
-${description}
+const maxTweetLength = 220;
 
-${productLink || ""}`.trim();
+const safeTitle =
+  (title || "").length > 70
+    ? (title || "").substring(0, 67).trim() + "..."
+    : title || "";
 
+const reservedLength =
+  safeTitle.length +
+  hashtags.length +
+  link.length +
+  6;
+
+const maxDescriptionLength = Math.max(40, maxTweetLength - reservedLength);
+
+const safeDescription =
+  (description || "").length > maxDescriptionLength
+    ? (description || "").substring(0, maxDescriptionLength).trim().replace(/\s+\S*$/, "") + "..."
+    : description || "";
+
+const message = [
+  safeTitle,
+  safeDescription,
+  hashtags,
+  link,
+]
+  .filter(Boolean)
+  .join("\n")
+  .trim();
+
+console.log("X MESSAGE DEBUG:");
+console.log(message);
+  
   if (!message) {
     throw new Error("Missing X post message");
   }
@@ -1823,7 +1853,7 @@ ${productLink || ""}`.trim();
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      text: message.slice(0, 280),
+      text: message,
     }),
   });
 
@@ -2356,6 +2386,21 @@ IMPORTANT RULES
 - Do NOT use bullet points.
 - Do NOT wrap anything in quotes.
 - Do NOT mention that you analyzed the image.
+
+X HARD RULES
+
+When platform = X:
+
+- TITLE must be 60 characters or less.
+- DESCRIPTION must be 120 characters or less.
+- DESCRIPTION must be one short punchy sentence.
+- HASHTAGS must contain exactly 3 hashtags.
+- CTA must be blank.
+- Do not use "link in bio".
+- Do not include product links.
+- Do not include URLs.
+- Do not write long paragraphs.
+- Do not use more than 3 hashtags.
  
 INSTAGRAM HARD RULES
  
