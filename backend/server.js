@@ -3004,9 +3004,12 @@ app.listen(PORT, async () => {
   );
 
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
+<<<<<<< HEAD
   console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
   console.log("LIVE SERVER VERSION: INSTAGRAM SCHEDULER FIX 1");
   console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
+=======
+>>>>>>> 1792c5d (Update live server version log message for Instagram)
 
   console.log(
     `Stripe configured: ${
