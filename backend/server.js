@@ -2780,18 +2780,39 @@ Exact JSON format:
 }
 
 Rules:
-- Pinterest title should be SEO-friendly and under 100 characters.
-- Pinterest description should be keyword-rich and sales-focused.
-- Facebook message should be longer, conversational, and may include the product link.
-- Instagram message must NOT include URLs, website addresses, domains, or product links.
-- Instagram must use link-in-bio wording only.
-- Instagram should include exactly 12 to 15 hashtags.
-- Instagram caption should be 50 to 100 words and consist of 2 to 4 complete sentences.
-- Instagram caption should feel like authentic social media storytelling, not a short product listing.
-- X message must be short, punchy, under 280 characters, and may include the product link.
-- X should use no more than 3 hashtags.
-- Do not copy the X message into the other platforms.
-- Make each platform noticeably different.
+
+- Make every platform noticeably different.
+
+PINTEREST:
+- Create an SEO-friendly title under 100 characters.
+- Create a keyword-rich description of 40-80 words.
+- Focus on searchability, collecting, gifts, decor, and product discovery.
+
+FACEBOOK:
+- Create a conversational post of 50-100 words.
+- Tell a short story or create excitement around the artwork.
+- Include a natural call-to-action.
+- The product link may be included.
+
+INSTAGRAM:
+- Create a 50-100 word caption made of 2-4 complete sentences.
+- The caption should feel like authentic social media storytelling, not a product listing.
+- Include exactly 12 to 15 highly relevant hashtags at the end of the caption.
+- Mix broad art hashtags with niche design hashtags.
+- Hashtags should be separated by spaces.
+- Do NOT include URLs.
+- Do NOT include website addresses.
+- Do NOT include domains.
+- Do NOT include product links.
+- Use "Tap the link in bio" language only.
+
+X:
+- Create a short, punchy post under 280 characters.
+- Use no more than 3 hashtags.
+- The product link may be included.
+- Keep it concise and engaging.
+
+Do not reuse or lightly rewrite the same caption across platforms. Each platform should sound like it was written specifically for that audience.
 `,
     });
 
