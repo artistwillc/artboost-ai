@@ -889,13 +889,8 @@ const postEverywhere = async () => {
       return;
     }
 
-    if (!title || !description) {
-      Alert.alert("Missing Content", "Generate or enter campaign content first.");
-      return;
-    }
-
-    if (!imageUrl) {
-      Alert.alert("Missing Image URL", "A public image URL is required.");
+    if (!title || !description || !imageUrl) {
+      Alert.alert("Missing Content", "Title, description, and image URL are required.");
       return;
     }
 
@@ -911,10 +906,107 @@ const postEverywhere = async () => {
 
     setPublishing(true);
 
-    await createPinterestPin();
-    await createFacebookPost();
-    await createInstagramPost();
-    await createXPost();
+    const finalProductLink = cleanUrl(productLink);
+
+    const facebookMessage = `${title}
+
+${description}
+
+${cta}
+
+${hashtags}
+
+${finalProductLink}`.trim();
+
+    const instagramDescription = description
+      .replace(/https?:\/\/\S+/gi, "")
+      .replace(/www\.\S+/gi, "")
+      .replace(/Shop here:?/gi, "")
+      .replace(/Shop now:?/gi, "")
+      .replace(/Grab yours now:?/gi, "")
+      .replace(/Grab yours here:?/gi, "")
+      .replace(/Check it out here:?/gi, "")
+      .replace(/Visit our store:?/gi, "")
+      .replace(/Visit:?/gi, "")
+      .trim();
+
+    const instagramCta =
+      (cta || "Tap the link in bio")
+        .replace(/https?:\/\/\S+/gi, "")
+        .replace(/www\.\S+/gi, "")
+        .replace(/click the link in bio/gi, "Tap the link in bio")
+        .replace(/\s{2,}/g, " ")
+        .trim() || "Tap the link in bio";
+
+    const instagramMessage = `${title}
+
+${instagramDescription}
+
+${instagramCta}
+
+${hashtags}`.trim();
+
+    const safeDescription =
+      description.length > 80
+        ? description.substring(0, 77).replace(/\s+\S*$/, "") + "..."
+        : description;
+
+    const shortTags = hashtags
+      .split(/\s+/)
+      .filter((tag) => tag.startsWith("#"))
+      .slice(0, 3)
+      .join(" ");
+
+    const xMessage = [
+      title,
+      safeDescription,
+      shortTags,
+      finalProductLink,
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+
+    await fetch(`${BACKEND_URL}/pinterest/create-pin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        boardId: selectedBoard,
+        title,
+        description,
+        link: finalProductLink,
+        imageUrl,
+      }),
+    });
+
+    await fetch(`${BACKEND_URL}/facebook/post`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: facebookMessage,
+        imageUrl,
+        pageId: selectedFacebookPage,
+      }),
+    });
+
+    await fetch(`${BACKEND_URL}/instagram/post`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: instagramMessage,
+        imageUrl,
+      }),
+    });
+
+    await fetch(`${BACKEND_URL}/x/post`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: xMessage,
+        imageUrl,
+        productLink: finalProductLink,
+      }),
+    });
 
     Alert.alert(
       "Post Everywhere Complete",
