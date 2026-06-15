@@ -144,43 +144,34 @@ export default function HomeScreen() {
 };
 
   const signIn = async () => {
-    if (!authEmail || !authPassword) {
-      Alert.alert("Missing Info", "Enter your email and password.");
-      return;
-    }
-
-    try {
-      setAuthLoading(true);
-
-      try {
-  const result = await supabase.auth.signInWithPassword({
-    email: authEmail.trim(),
-    password: authPassword,
-  });
-
-  console.log("LOGIN RESULT:", JSON.stringify(result, null, 2));
-
-  if (result.error) {
-    Alert.alert("Login Error", result.error.message);
+  if (!authEmail || !authPassword) {
+    Alert.alert("Missing Info", "Enter your email and password.");
     return;
   }
 
-  Alert.alert("Logged In", "Welcome back to ArtBoost AI.");
-} catch (err) {
-  console.log("LOGIN EXCEPTION:", err);
-  Alert.alert("Login Error", JSON.stringify(err));
-}
+  try {
+    setAuthLoading(true);
 
-      if (error) {
-        Alert.alert("Login Error", error.message);
-        return;
-      }
+    const result = await supabase.auth.signInWithPassword({
+      email: authEmail.trim(),
+      password: authPassword,
+    });
 
-      Alert.alert("Logged In", "Welcome back to ArtBoost AI.");
-    } finally {
-      setAuthLoading(false);
+    console.log("LOGIN RESULT:", JSON.stringify(result, null, 2));
+
+    if (result.error) {
+      Alert.alert("Login Error", result.error.message);
+      return;
     }
-  };
+
+    Alert.alert("Logged In", "Welcome back to ArtBoost AI.");
+  } catch (err: any) {
+    console.log("LOGIN EXCEPTION:", err);
+    Alert.alert("Login Error", err?.message || JSON.stringify(err));
+  } finally {
+    setAuthLoading(false);
+  }
+};
 
   const signOut = async () => {
     await supabase.auth.signOut();
