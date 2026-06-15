@@ -2389,6 +2389,13 @@ When platform = Instagram:
 - ".org" is forbidden.
 - ".shop" is forbidden.
 - ".store" is forbidden.
+
+- DESCRIPTION must be 2 to 4 complete sentences.
+- DESCRIPTION must feel like a real Instagram caption, not a short product blurb.
+- DESCRIPTION should be approximately 50 to 100 words.
+- DESCRIPTION should tell a story or create excitement around the artwork rather than simply describing it.
+- HASHTAGS must contain 12 to 15 hashtags.
+- CTA must be one complete sentence using link-in-bio wording.
  
 The DESCRIPTION must contain zero links.
  
@@ -2453,7 +2460,9 @@ Focus on:
  
 HASHTAGS:
  
-Generate 10-15 strong hashtags for ${platform}.
+For Instagram, generate exactly 12 to 15 highly relevant hashtags.
+Each hashtag must be on its own line.
+Mix broad art hashtags with niche artwork-specific hashtags.
  
 Each hashtag must be on its own line.
  
