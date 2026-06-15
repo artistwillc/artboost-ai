@@ -3015,6 +3015,18 @@ Final check:
 - Instagram should feel visual and story-driven.
 - X should be short and punchy.
 - Return only valid JSON.
+- Pinterest title should be SEO-friendly and under 100 characters.
+- Pinterest description should be keyword-rich and sales-focused.
+- Facebook message should be longer, conversational, and may include the product link.
+- Instagram message must NOT include URLs, website addresses, domains, or product links.
+- Instagram must use link-in-bio wording only.
+- Instagram should include 10 to 15 hashtags.
+- X message must be short, punchy, under 280 characters, and may include the product link.
+- X should use no more than 3 hashtags.
+- Do not copy the X message into the other platforms.
+- Make each platform noticeably different.
+`,
+    });
 
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
