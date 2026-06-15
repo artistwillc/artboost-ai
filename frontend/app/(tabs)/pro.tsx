@@ -882,6 +882,56 @@ const message = [
   }
 };
 
+const postEverywhere = async () => {
+  try {
+    if (!profile?.is_pro) {
+      Alert.alert("Pro Required", "Post Everywhere is a Pro feature.");
+      return;
+    }
+
+    if (!title || !description) {
+      Alert.alert("Missing Content", "Generate or enter campaign content first.");
+      return;
+    }
+
+    if (!imageUrl) {
+      Alert.alert("Missing Image URL", "A public image URL is required.");
+      return;
+    }
+
+    if (!selectedBoard) {
+      Alert.alert("Missing Pinterest Board", "Please select a Pinterest board first.");
+      return;
+    }
+
+    if (!selectedFacebookPage) {
+      Alert.alert("Missing Facebook Page", "Please select a Facebook Page first.");
+      return;
+    }
+
+    setPublishing(true);
+
+    await createPinterestPin();
+    await createFacebookPost();
+    await createInstagramPost();
+    await createXPost();
+
+    Alert.alert(
+      "Post Everywhere Complete",
+      "Your campaign was sent to Pinterest, Facebook, Instagram, and X."
+    );
+  } catch (err: any) {
+    console.log("Post Everywhere failed:", err);
+
+    Alert.alert(
+      "Post Everywhere Failed",
+      err.message || "One or more platforms failed to publish."
+    );
+  } finally {
+    setPublishing(false);
+  }
+};
+
 const generateVariations = async () => {
     try {
       if (!profile?.is_pro) {
@@ -1286,7 +1336,7 @@ Pinterest
       <View style={styles.automationGrid}>
         <Pressable
           style={styles.automationCard}
-          onPress={() => simulateProFeature("Post Everywhere")}
+          onPress={postEverywhere}
         >
           <Text style={styles.automationTitle}>Post Everywhere</Text>
           <Text style={styles.automationText}>
