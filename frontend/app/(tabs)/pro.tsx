@@ -829,14 +829,25 @@ const createXPost = async () => {
     setPublishing(true);
 
     const safeDescription =
-      description.length > 140
-        ? description.substring(0, 137).replace(/\s+\S*$/, "") + "..."
-        : description;
+  description.length > 80
+    ? description.substring(0, 77).replace(/\s+\S*$/, "") + "..."
+    : description;
 
-    const message = [title, safeDescription, hashtags]
-      .filter(Boolean)
-      .join("\n\n")
-      .trim();
+const shortTags = hashtags
+  .split(/\s+/)
+  .filter((tag) => tag.startsWith("#"))
+  .slice(0, 3)
+  .join(" ");
+
+const message = [
+  title,
+  safeDescription,
+  shortTags,
+  productLink,
+]
+  .filter(Boolean)
+  .join("\n\n")
+  .trim();
 
     const response = await fetch(`${BACKEND_URL}/x/post`, {
       method: "POST",
@@ -844,8 +855,10 @@ const createXPost = async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message,
-      }),
+  message,
+  imageUrl,
+  productLink,
+}),
     });
 
     const data = await response.json();
