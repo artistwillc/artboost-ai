@@ -3071,7 +3071,10 @@ app.listen(PORT, () => {
   );
 
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
+<<<<<<< HEAD
   console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
+=======
+>>>>>>> 552919c (Update log message for Instagram caption fix)
 
   console.log(
     `Stripe configured: ${
