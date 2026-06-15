@@ -1796,7 +1796,8 @@ const safeTitle =
 const reservedLength =
   safeTitle.length +
   hashtags.length +
-  4;
+  link.length +
+  6;
 
 const maxDescriptionLength = Math.max(40, maxTweetLength - reservedLength);
 
