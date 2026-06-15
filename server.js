@@ -2356,6 +2356,21 @@ IMPORTANT RULES
 - Do NOT use bullet points.
 - Do NOT wrap anything in quotes.
 - Do NOT mention that you analyzed the image.
+
+X HARD RULES
+
+When platform = X:
+
+- TITLE must be 60 characters or less.
+- DESCRIPTION must be 120 characters or less.
+- DESCRIPTION must be one short punchy sentence.
+- HASHTAGS must contain exactly 3 hashtags.
+- CTA must be blank.
+- Do not use "link in bio".
+- Do not include product links.
+- Do not include URLs.
+- Do not write long paragraphs.
+- Do not use more than 3 hashtags.
  
 INSTAGRAM HARD RULES
  
@@ -2704,88 +2719,88 @@ res.json({
   }
 });
  
-app.post("/generate-variations", async (req, res) => {
+app.post("/generate-platform-content", async (req, res) => {
   try {
-    const { title, description, platform, productLink } = req.body;
- 
+    const { title, description, hashtags, cta, productLink } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({
+        error: "Missing title or description.",
+      });
+    }
+
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
       input: `
-You are ArtBoost AI, a premium marketing assistant for artists, creators, and print-on-demand sellers.
- 
-Generate 5 UNIQUE high-performing marketing variations for this artwork campaign.
- 
-Platform:
-${platform || "Pinterest"}
- 
-Original Title:
-${title || "Untitled Artwork"}
- 
-Original Description:
-${description || "No description provided"}
- 
+You are ArtBoost AI, a platform-specific marketing assistant for artists and print-on-demand sellers.
+
+Create unique publishing content for Pinterest, Facebook, Instagram, and X from this artwork campaign.
+
+Base Title:
+${title}
+
+Base Description:
+${description}
+
+Base Hashtags:
+${hashtags || ""}
+
+Base CTA:
+${cta || ""}
+
 Product Link:
-${productLink || "No product link"}
- 
-Create these exact variation styles:
-1. Emotional
-2. SEO Optimized
-3. Viral Hook
-4. Luxury/Premium
-5. Short Punchy
- 
-Return ONLY valid JSON in this exact structure:
+${productLink || ""}
+
+Return ONLY valid JSON. No markdown. No explanation.
+
+Exact JSON format:
 {
-  "variations": [
-    {
-      "style": "Emotional",
-      "title": "...",
-      "description": "..."
-    },
-    {
-      "style": "SEO Optimized",
-      "title": "...",
-      "description": "..."
-    },
-    {
-      "style": "Viral Hook",
-      "title": "...",
-      "description": "..."
-    },
-    {
-      "style": "Luxury/Premium",
-      "title": "...",
-      "description": "..."
-    },
-    {
-      "style": "Short Punchy",
-      "title": "...",
-      "description": "..."
-    }
-  ]
+  "pinterest": {
+    "title": "",
+    "description": ""
+  },
+  "facebook": {
+    "message": ""
+  },
+  "instagram": {
+    "message": ""
+  },
+  "x": {
+    "message": ""
+  }
 }
- 
+
 Rules:
-- Do not include markdown.
-- Do not explain anything.
-- Do not wrap JSON in code fences.
-- Make each variation noticeably different.
-      `,
+- Pinterest title should be SEO-friendly and under 100 characters.
+- Pinterest description should be keyword-rich and sales-focused.
+- Facebook message should be longer, conversational, and may include the product link.
+- Instagram message must NOT include URLs, website addresses, domains, or product links.
+- Instagram must use link-in-bio wording only.
+- Instagram should include 10 to 15 hashtags.
+- X message must be short, punchy, under 280 characters, and may include the product link.
+- X should use no more than 3 hashtags.
+- Do not copy the X message into the other platforms.
+- Make each platform noticeably different.
+`,
     });
- 
+
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
- 
+
     const parsed = JSON.parse(raw);
- 
-    res.json(parsed);
+
+    res.json({
+      success: true,
+      content: parsed,
+    });
   } catch (err) {
-    console.error("Variation generation error:", err);
+    console.error("Platform content generation error:", err);
+
     res.status(500).json({
-      error: "Failed to generate AI variations.",
+      error: "Failed to generate platform-specific content.",
       details: err.message,
     });
   }
