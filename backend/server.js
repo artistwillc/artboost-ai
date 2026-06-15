@@ -2829,7 +2829,7 @@ app.listen(PORT, async () => {
     facebookConnection.connected
   );
 
-  console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
+  console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
 
   console.log(
     `Stripe configured: ${
