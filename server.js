@@ -2976,16 +2976,12 @@ Exact JSON format:
 Rules:
 
 - Make every platform noticeably different.
-<<<<<<< HEAD
 - Do not copy the same caption across platforms.
 - Each platform must sound native to that platform.
-=======
->>>>>>> a31529a (Update server.js)
 
 PINTEREST:
 - Create an SEO-friendly title under 100 characters.
 - Create a keyword-rich description of 40-80 words.
-<<<<<<< HEAD
 - Focus on search, saving, gifts, wall art, stickers, apparel, decor, collectors, and product discovery.
 - Include the product link naturally if provided.
 
@@ -2999,7 +2995,6 @@ FACEBOOK:
 INSTAGRAM:
 - Create a 50-100 word caption using 2-4 complete sentences.
 - Make it feel like real social media storytelling, not a product listing.
-=======
 - Focus on searchability, collecting, gifts, decor, and product discovery.
 
 FACEBOOK:
@@ -3014,12 +3009,10 @@ INSTAGRAM:
 - Include exactly 12 to 15 highly relevant hashtags at the end of the caption.
 - Mix broad art hashtags with niche design hashtags.
 - Hashtags should be separated by spaces.
->>>>>>> a31529a (Update server.js)
 - Do NOT include URLs.
 - Do NOT include website addresses.
 - Do NOT include domains.
 - Do NOT include product links.
-<<<<<<< HEAD
 - Use link-in-bio wording only.
 - End with exactly 12 to 15 relevant hashtags.
 - Hashtags must be separated by spaces.
@@ -3048,7 +3041,6 @@ Final check:
 - X should use no more than 3 hashtags.
 - Do not copy the X message into the other platforms.
 - Make each platform noticeably different.
-=======
 - Use "Tap the link in bio" language only.
 
 X:
@@ -3058,7 +3050,6 @@ X:
 - Keep it concise and engaging.
 
 Do not reuse or lightly rewrite the same caption across platforms. Each platform should sound like it was written specifically for that audience.
->>>>>>> a31529a (Update server.js)
 `,
     });
 
@@ -3103,10 +3094,7 @@ app.listen(PORT, () => {
   );
 
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
-<<<<<<< HEAD
   console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
-=======
->>>>>>> 552919c (Update log message for Instagram caption fix)
 
   console.log(
     `Stripe configured: ${
