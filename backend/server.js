@@ -2782,17 +2782,25 @@ Exact JSON format:
 Rules:
 
 - Make every platform noticeably different.
+- Do not reuse or lightly rewrite the same caption across platforms.
+- Each platform should sound like it was written specifically for that audience.
 
 PINTEREST:
 - Create an SEO-friendly title under 100 characters.
-- Create a keyword-rich description of 40-80 words.
-- Focus on searchability, collecting, gifts, decor, and product discovery.
+- Create a rich, keyword-focused description of 70-100 words.
+- The description must be at least 4 complete sentences.
+- Include searchable phrases naturally, such as hot rod art, rat rod artwork, muscle car design, cartoon car art, garage decor, gearhead gift, racing artwork, and automotive wall art when relevant.
+- Focus on searchability, collecting, gifts, decor, product discovery, and buyer intent.
+- Do not make the Pinterest description short.
 
 FACEBOOK:
-- Create a conversational post of 50-100 words.
+- Create a conversational post of 70-120 words.
+- The message must be at least 4 complete sentences.
 - Tell a short story or create excitement around the artwork.
+- Mention who the design is perfect for, such as gearheads, hot rod fans, car lovers, garage decor collectors, or custom art fans when relevant.
 - Include a natural call-to-action.
-- The product link may be included.
+- Include the product link at the end if one is provided.
+- Do not make the Facebook message short.
 
 INSTAGRAM:
 - Create a 50-100 word caption made of 2-4 complete sentences.
@@ -2809,12 +2817,8 @@ INSTAGRAM:
 X:
 - Create a short, punchy post under 280 characters.
 - Use no more than 3 hashtags.
-- The product link may be included.
+- Include the product link at the end if one is provided.
 - Keep it concise and engaging.
-
-Do not reuse or lightly rewrite the same caption across platforms. Each platform should sound like it was written specifically for that audience.
-`,
-    });
 
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
