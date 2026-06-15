@@ -644,6 +644,7 @@ console.log("Facebook Pages Response:", data);
       }
  
       const finalProductLink = cleanUrl(productLink);
+      
  
       if (finalProductLink && !finalProductLink.startsWith("http")) {
         Alert.alert(
@@ -908,72 +909,52 @@ const postEverywhere = async () => {
 
     const finalProductLink = cleanUrl(productLink);
 
-    const facebookMessage = `${title}
+    const aiResponse = await fetch(`${BACKEND_URL}/generate-platform-content`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title,
+        description,
+        hashtags,
+        cta,
+        productLink: finalProductLink,
+      }),
+    });
 
-${description}
+    const aiData = await aiResponse.json();
 
-${cta}
+    if (!aiResponse.ok || !aiData.content) {
+      throw new Error(
+        aiData.error || "Failed to generate platform-specific content."
+      );
+    }
 
-${hashtags}
+    const platformContent = aiData.content;
 
-${finalProductLink}`.trim();
+    const pinterestTitle =
+      platformContent.pinterest?.title || title;
 
-    const instagramDescription = description
-      .replace(/https?:\/\/\S+/gi, "")
-      .replace(/www\.\S+/gi, "")
-      .replace(/Shop here:?/gi, "")
-      .replace(/Shop now:?/gi, "")
-      .replace(/Grab yours now:?/gi, "")
-      .replace(/Grab yours here:?/gi, "")
-      .replace(/Check it out here:?/gi, "")
-      .replace(/Visit our store:?/gi, "")
-      .replace(/Visit:?/gi, "")
-      .trim();
+    const pinterestDescription =
+      platformContent.pinterest?.description || description;
 
-    const instagramCta =
-      (cta || "Tap the link in bio")
-        .replace(/https?:\/\/\S+/gi, "")
-        .replace(/www\.\S+/gi, "")
-        .replace(/click the link in bio/gi, "Tap the link in bio")
-        .replace(/\s{2,}/g, " ")
-        .trim() || "Tap the link in bio";
+    const facebookMessage =
+      platformContent.facebook?.message || `${title}\n\n${description}`;
 
-    const instagramMessage = `${title}
+    const instagramMessage =
+      platformContent.instagram?.message || `${title}\n\n${description}`;
 
-${instagramDescription}
-
-${instagramCta}
-
-${hashtags}`.trim();
-
-    const safeDescription =
-      description.length > 80
-        ? description.substring(0, 77).replace(/\s+\S*$/, "") + "..."
-        : description;
-
-    const shortTags = hashtags
-      .split(/\s+/)
-      .filter((tag) => tag.startsWith("#"))
-      .slice(0, 3)
-      .join(" ");
-
-    const xMessage = [
-      title,
-      safeDescription,
-      shortTags,
-      finalProductLink,
-    ]
-      .filter(Boolean)
-      .join("\n\n")
-      .trim();
+    const xMessage =
+      platformContent.x?.message || title;
 
     await fetch(`${BACKEND_URL}/pinterest/create-pin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         boardId: selectedBoard,
-        title,
-        description,
+        title: pinterestTitle,
+        description: pinterestDescription,
         link: finalProductLink,
         imageUrl,
       }),
@@ -1010,7 +991,7 @@ ${hashtags}`.trim();
 
     Alert.alert(
       "Post Everywhere Complete",
-      "Your campaign was sent to Pinterest, Facebook, Instagram, and X."
+      "Your campaign was sent to Pinterest, Facebook, Instagram, and X with platform-specific content."
     );
   } catch (err: any) {
     console.log("Post Everywhere failed:", err);
