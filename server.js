@@ -1783,42 +1783,12 @@ ${description}`;
 }
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
-  const hashtags = "#RatFink #HotRodArt #CustomArtwork";
-  const link = productLink || "";
+  const message = `${title}
 
-const maxTweetLength = 220;
+${description}
 
-const safeTitle =
-  (title || "").length > 70
-    ? (title || "").substring(0, 67).trim() + "..."
-    : title || "";
+${productLink || ""}`.trim();
 
-const reservedLength =
-  safeTitle.length +
-  hashtags.length +
-  link.length +
-  6;
-
-const maxDescriptionLength = Math.max(40, maxTweetLength - reservedLength);
-
-const safeDescription =
-  (description || "").length > maxDescriptionLength
-    ? (description || "").substring(0, maxDescriptionLength).trim().replace(/\s+\S*$/, "") + "..."
-    : description || "";
-
-const message = [
-  safeTitle,
-  safeDescription,
-  hashtags,
-  link,
-]
-  .filter(Boolean)
-  .join("\n")
-  .trim();
-
-console.log("X MESSAGE DEBUG:");
-console.log(message);
-  
   if (!message) {
     throw new Error("Missing X post message");
   }
@@ -1853,7 +1823,7 @@ console.log(message);
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      text: message,
+      text: message.slice(0, 280),
     }),
   });
 
@@ -2419,6 +2389,13 @@ When platform = Instagram:
 - ".org" is forbidden.
 - ".shop" is forbidden.
 - ".store" is forbidden.
+
+- DESCRIPTION must be 2 to 4 complete sentences.
+- DESCRIPTION must feel like a real Instagram caption, not a short product blurb.
+- DESCRIPTION should be approximately 50 to 100 words.
+- DESCRIPTION should tell a story or create excitement around the artwork rather than simply describing it.
+- HASHTAGS must contain 12 to 15 hashtags.
+- CTA must be one complete sentence using link-in-bio wording.
  
 The DESCRIPTION must contain zero links.
  
@@ -2483,7 +2460,9 @@ Focus on:
  
 HASHTAGS:
  
-Generate 10-15 strong hashtags for ${platform}.
+For Instagram, generate exactly 12 to 15 highly relevant hashtags.
+Each hashtag must be on its own line.
+Mix broad art hashtags with niche artwork-specific hashtags.
  
 Each hashtag must be on its own line.
  
@@ -2749,88 +2728,117 @@ res.json({
   }
 });
  
-app.post("/generate-variations", async (req, res) => {
+app.post("/generate-platform-content", async (req, res) => {
   try {
-    const { title, description, platform, productLink } = req.body;
- 
+    const { title, description, hashtags, cta, productLink } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({
+        error: "Missing title or description.",
+      });
+    }
+
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
       input: `
-You are ArtBoost AI, a premium marketing assistant for artists, creators, and print-on-demand sellers.
- 
-Generate 5 UNIQUE high-performing marketing variations for this artwork campaign.
- 
-Platform:
-${platform || "Pinterest"}
- 
-Original Title:
-${title || "Untitled Artwork"}
- 
-Original Description:
-${description || "No description provided"}
- 
+You are ArtBoost AI, a platform-specific marketing assistant for artists and print-on-demand sellers.
+
+Create unique publishing content for Pinterest, Facebook, Instagram, and X from this artwork campaign.
+
+Base Title:
+${title}
+
+Base Description:
+${description}
+
+Base Hashtags:
+${hashtags || ""}
+
+Base CTA:
+${cta || ""}
+
 Product Link:
-${productLink || "No product link"}
- 
-Create these exact variation styles:
-1. Emotional
-2. SEO Optimized
-3. Viral Hook
-4. Luxury/Premium
-5. Short Punchy
- 
-Return ONLY valid JSON in this exact structure:
+${productLink || ""}
+
+Return ONLY valid JSON. No markdown. No explanation.
+
+Exact JSON format:
 {
-  "variations": [
-    {
-      "style": "Emotional",
-      "title": "...",
-      "description": "..."
-    },
-    {
-      "style": "SEO Optimized",
-      "title": "...",
-      "description": "..."
-    },
-    {
-      "style": "Viral Hook",
-      "title": "...",
-      "description": "..."
-    },
-    {
-      "style": "Luxury/Premium",
-      "title": "...",
-      "description": "..."
-    },
-    {
-      "style": "Short Punchy",
-      "title": "...",
-      "description": "..."
-    }
-  ]
+  "pinterest": {
+    "title": "",
+    "description": ""
+  },
+  "facebook": {
+    "message": ""
+  },
+  "instagram": {
+    "message": ""
+  },
+  "x": {
+    "message": ""
+  }
 }
- 
+
 Rules:
-- Do not include markdown.
-- Do not explain anything.
-- Do not wrap JSON in code fences.
-- Make each variation noticeably different.
-      `,
-    });
- 
+
+- Make every platform noticeably different.
+- Do not copy the same caption across platforms.
+- Each platform must sound native to that platform.
+
+PINTEREST:
+- Create an SEO-friendly title under 100 characters.
+- Create a keyword-rich description of 40-80 words.
+- Focus on search, saving, gifts, wall art, stickers, apparel, decor, collectors, and product discovery.
+- Include the product link naturally if provided.
+
+FACEBOOK:
+- Create a conversational post of 60-120 words.
+- Sound human, excited, and natural.
+- Mention what makes the artwork stand out.
+- Include a clear call-to-action.
+- Include the product link if provided.
+
+INSTAGRAM:
+- Create a 50-100 word caption using 2-4 complete sentences.
+- Make it feel like real social media storytelling, not a product listing.
+- Do NOT include URLs.
+- Do NOT include website addresses.
+- Do NOT include domains.
+- Do NOT include product links.
+- Use link-in-bio wording only.
+- End with exactly 12 to 15 relevant hashtags.
+- Hashtags must be separated by spaces.
+
+X:
+- Create a short punchy post under 260 characters.
+- Use no more than 3 hashtags.
+- Include the product link if provided.
+- Keep it bold, simple, and scroll-stopping.
+
+Final check:
+- Pinterest should be searchable.
+- Facebook should feel conversational.
+- Instagram should feel visual and story-driven.
+- X should be short and punchy.
+- Return only valid JSON.
+
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
- 
+
     const parsed = JSON.parse(raw);
- 
-    res.json(parsed);
+
+    res.json({
+      success: true,
+      content: parsed,
+    });
   } catch (err) {
-    console.error("Variation generation error:", err);
+    console.error("Platform content generation error:", err);
+
     res.status(500).json({
-      error: "Failed to generate AI variations.",
+      error: "Failed to generate platform-specific content.",
       details: err.message,
     });
   }
@@ -2848,7 +2856,7 @@ app.listen(PORT, async () => {
     facebookConnection.connected
   );
 
-  console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
+  console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
 
   console.log(
     `Stripe configured: ${
