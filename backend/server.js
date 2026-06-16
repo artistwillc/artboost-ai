@@ -1837,90 +1837,6 @@ ${productLink || ""}`.trim();
   return data;
 }
 
-${productLink || ""}`;
-
-  const response = await fetch(
-    `https://graph.facebook.com/v23.0/${page.id}/photos`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url: imageUrl,
-        caption: message,
-        access_token: page.access_token,
-      }),
-    }
-  );
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(data.error.message);
-  }
-
-  return data;
-}
-
-async function publishInstagramPost({ title, description, imageUrl }) {
-  const instagramUserId = process.env.INSTAGRAM_USER_ID;
-  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
-
-  if (!instagramUserId || !accessToken) {
-    throw new Error("Instagram not configured");
-  }
-
-  if (!imageUrl) {
-    throw new Error("Instagram requires an imageUrl to publish.");
-  }
-
-  const message = `${title}
-
-${description}`;
-
-  const createContainerResponse = await fetch(
-    `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image_url: imageUrl,
-        caption: message,
-        access_token: accessToken,
-      }),
-    }
-  );
-
-  const createContainerData = await createContainerResponse.json();
-
-  if (createContainerData.error) {
-    throw new Error(createContainerData.error.message);
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 8000));
-
-  const publishResponse = await fetch(
-    `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        creation_id: createContainerData.id,
-        access_token: accessToken,
-      }),
-    }
-  );
-
-  const publishData = await publishResponse.json();
-
-  if (publishData.error) {
-    throw new Error(publishData.error.message);
-  }
-
-  return publishData;
-}
- 
 app.post("/pinterest/create-pin", async (req, res) => {
   try {
     const { userId, boardId, title, description, link, imageUrl } = req.body;
@@ -2271,56 +2187,6 @@ async function runScheduledCampaigns() {
           campaign.platform
         );
       }
-const platform = String(campaign.platform || "").trim().toLowerCase();
-
-console.log(
-  "SCHEDULER DEBUG:",
-  "id =", campaign.id,
-  "raw platform =", campaign.platform,
-  "normalized =", platform
-);
-
-if (platform === "facebook") {
-  publishData = await publishFacebookPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-    pageId: campaign.page_id,
-  });
-} else if (platform === "instagram") {
-  console.log("Publishing Instagram campaign:", campaign.id);
-
-  publishData = await publishInstagramPost({
-    title: campaign.title,
-    description: campaign.description,
-    imageUrl: campaign.image_url,
-  });
-} else if (platform === "x") {
-  console.log("Publishing X campaign:", campaign.id);
-
-  publishData = await publishXPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
-} else {
-  console.log(
-    "Publishing Pinterest campaign:",
-    campaign.id,
-    "platform =",
-    campaign.platform
-  );
-
-  publishData = await publishPinterestPin({
-    boardId: campaign.board_id,
-    title: campaign.title,
-    description: campaign.description,
-    link: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
-}
  
       const repeatType = campaign.repeat_type || "one_time";
       let nextRunDate = null;
@@ -2992,6 +2858,8 @@ Final check:
 - Instagram should feel visual and story-driven.
 - X should be short and punchy.
 - Return only valid JSON.
+`,
+    });
 
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
