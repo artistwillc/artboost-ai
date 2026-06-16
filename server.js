@@ -1785,12 +1785,8 @@ ${description}`;
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
   const linkText = productLink || "";
-const maxDescriptionLength = linkText ? 180 : 240;
 
-const finalDescription =
-  description && description.length > maxDescriptionLength
-    ? description.substring(0, maxDescriptionLength).replace(/\s+\S*$/, "") + "..."
-    : description || "";
+const finalDescription = description || "";
 
 const message = [title, finalDescription, linkText]
   .filter(Boolean)
