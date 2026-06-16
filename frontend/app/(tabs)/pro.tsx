@@ -482,6 +482,11 @@ setImageUrl(campaign.imageUrl || "");
 
     const finalProductLink = cleanUrl(productLink);
 
+    const campaignGroupId =
+  Date.now().toString() +
+  "-" +
+  Math.random().toString(36).substring(2, 8);
+
     for (const platform of platforms) {
       const response = await fetch(`${BACKEND_URL}/schedule-campaign`, {
         method: "POST",
@@ -498,6 +503,7 @@ setImageUrl(campaign.imageUrl || "");
           pageId: platform === "Facebook" ? selectedFacebookPage : null,
           publishAt: getPublishAtIso(),
           platform,
+          campaignGroupId,
           repeatType: repostPreset || "one_time",
           nextRunAt:
             repostPreset && scheduledDate
