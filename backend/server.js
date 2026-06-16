@@ -48,6 +48,7 @@ let pinterestConnection = {
 const mapCampaignFromDb = (item) => ({
   id: item.id,
   userId: item.user_id,
+  campaignGroupId: item.campaign_group_id,
   platform: item.platform,
   title: item.title,
   description: item.description,
@@ -1783,11 +1784,18 @@ ${description}`;
 }
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
-  const message = `${title}
+  const linkText = productLink || "";
+const maxDescriptionLength = linkText ? 180 : 240;
 
-${description}
+const finalDescription =
+  description && description.length > maxDescriptionLength
+    ? description.substring(0, maxDescriptionLength).replace(/\s+\S*$/, "") + "..."
+    : description || "";
 
-${productLink || ""}`.trim();
+const message = [title, finalDescription, linkText]
+  .filter(Boolean)
+  .join("\n\n")
+  .trim();
 
   if (!message) {
     throw new Error("Missing X post message");
@@ -1809,22 +1817,72 @@ ${productLink || ""}`.trim();
     secret: process.env.X_ACCESS_TOKEN_SECRET,
   };
 
-  const requestData = {
+  let mediaId = null;
+
+  if (imageUrl) {
+    const imageResponse = await fetch(imageUrl);
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+    const uploadRequestData = {
+      url: "https://upload.twitter.com/1.1/media/upload.json",
+      method: "POST",
+    };
+
+    const uploadAuthHeader = oauth.toHeader(
+      oauth.authorize(uploadRequestData, token)
+    );
+
+    const formData = new FormData();
+    formData.append(
+      "media",
+      new Blob([imageBuffer]),
+      "artboost-image.jpg"
+    );
+
+    const uploadResponse = await fetch(uploadRequestData.url, {
+      method: "POST",
+      headers: {
+        ...uploadAuthHeader,
+      },
+      body: formData,
+    });
+
+    const uploadData = await uploadResponse.json();
+
+    if (!uploadResponse.ok || !uploadData.media_id_string) {
+      console.log("X Media Upload Error:", uploadData);
+      throw new Error("X image upload failed");
+    }
+
+    mediaId = uploadData.media_id_string;
+  }
+
+  const tweetRequestData = {
     url: "https://api.twitter.com/2/tweets",
     method: "POST",
   };
 
-  const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
+  const tweetAuthHeader = oauth.toHeader(
+    oauth.authorize(tweetRequestData, token)
+  );
 
-  const response = await fetch(requestData.url, {
+  const tweetBody = {
+    text: message,
+  };
+
+  if (mediaId) {
+    tweetBody.media = {
+      media_ids: [mediaId],
+    };
+  }
+
+  const response = await fetch(tweetRequestData.url, {
     method: "POST",
     headers: {
-      ...authHeader,
+      ...tweetAuthHeader,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      text: message.slice(0, 280),
-    }),
+    body: JSON.stringify(tweetBody),
   });
 
   const data = await response.json();
