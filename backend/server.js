@@ -2228,7 +2228,6 @@ ${hashtags || ""}`;
 }
  
 async function publishXPost({ title, description, productLink, imageUrl }) {
-<<<<<<< HEAD
   const finalDescription = description || "";
  
   const extractedLink =
@@ -2241,13 +2240,6 @@ async function publishXPost({ title, description, productLink, imageUrl }) {
     .trim();
  
   let message = [title, cleanedDescription, linkText]
-=======
-  const linkText = productLink || "";
-
-const finalDescription = description || "";
-
-const message = [title, finalDescription, linkText]
->>>>>>> 5655b7b (Refactor description handling in publishXPost function)
   .filter(Boolean)
   .join("\n\n")
   .trim();
