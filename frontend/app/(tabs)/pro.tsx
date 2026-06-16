@@ -446,6 +446,90 @@ setImageUrl(campaign.imageUrl || "");
       Alert.alert("Scheduling Error", err.message || "Failed to schedule campaign.");
     }
   };
+
+  const scheduleEverywhere = async () => {
+  try {
+    if (!profile?.is_pro) {
+      Alert.alert("Pro Required", "Schedule Everywhere is a Pro feature.");
+      return;
+    }
+
+    if (!title || !description) {
+      Alert.alert("Missing Content", "Generate or enter campaign content first.");
+      return;
+    }
+
+    if (!imageUrl) {
+      Alert.alert("Missing Image URL", "A public image URL is required for scheduled publishing.");
+      return;
+    }
+
+    if (!scheduledDate) {
+      Alert.alert("Missing Schedule Time", "Choose a date and time first.");
+      return;
+    }
+
+    if (!selectedFacebookPage) {
+      Alert.alert("Missing Facebook Page", "Please select a Facebook Page first.");
+      return;
+    }
+
+    const platforms = ["Facebook", "Instagram", "X"];
+
+    if (selectedBoard) {
+      platforms.unshift("Pinterest");
+    }
+
+    const finalProductLink = cleanUrl(productLink);
+
+    for (const platform of platforms) {
+      const response = await fetch(`${BACKEND_URL}/schedule-campaign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: session?.user?.id || null,
+          title,
+          description,
+          imageUrl,
+          productLink: finalProductLink,
+          boardId: platform === "Pinterest" ? selectedBoard : null,
+          pageId: platform === "Facebook" ? selectedFacebookPage : null,
+          publishAt: getPublishAtIso(),
+          platform,
+          repeatType: repostPreset || "one_time",
+          nextRunAt:
+            repostPreset && scheduledDate
+              ? scheduledDate.toISOString()
+              : null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          `${platform}: ${data.error || "Failed to schedule campaign."}`
+        );
+      }
+    }
+
+    await loadScheduledCampaigns();
+    setScheduledDate(null);
+
+    Alert.alert(
+      "Scheduled Everywhere",
+      `Campaign scheduled for ${platforms.join(", ")}.`
+    );
+  } catch (err: any) {
+    console.log(err);
+    Alert.alert(
+      "Schedule Everywhere Error",
+      err.message || "Failed to schedule campaign everywhere."
+    );
+  }
+};
  
   const deleteScheduledCampaign = async (id: string) => {
     try {
@@ -1423,6 +1507,18 @@ Pinterest
             Queue this campaign for backend automated publishing.
           </Text>
         </Pressable>
+
+        <Pressable
+  style={styles.automationCard}
+  onPress={scheduleEverywhere}
+>
+  <Text style={styles.automationTitle}>
+    Schedule Everywhere
+  </Text>
+  <Text style={styles.automationText}>
+    Queue this campaign for Facebook, Instagram, X, and Pinterest when available.
+  </Text>
+</Pressable>
  
         <Pressable style={styles.automationCard} onPress={generateVariations}>
           <Text style={styles.automationTitle}>Generate Variations</Text>
