@@ -1889,6 +1889,7 @@ app.post("/schedule-campaign", async (req, res) => {
   pageId,
   publishAt,
   platform,
+  campaignGroupId,
   repeatType,
   nextRunAt,
   repeatUntil,
@@ -1912,6 +1913,7 @@ console.log("SCHEDULE REQUEST PLATFORM:", platform);
       .insert({
         user_id: userId || null,
         platform: platform || "Pinterest",
+        campaign_group_id: campaignGroupId || null,
         title,
         description,
         image_url: imageUrl || null,
