@@ -48,6 +48,7 @@ let pinterestConnection = {
 const mapCampaignFromDb = (item) => ({
   id: item.id,
   userId: item.user_id,
+  campaignGroupId: item.campaign_group_id,
   platform: item.platform,
   title: item.title,
   description: item.description,
