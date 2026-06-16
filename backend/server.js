@@ -1836,7 +1836,7 @@ ${productLink || ""}`.trim();
 
   return data;
 }
- 
+
 app.post("/pinterest/create-pin", async (req, res) => {
   try {
     const { userId, boardId, title, description, link, imageUrl } = req.body;
@@ -1896,6 +1896,7 @@ app.post("/schedule-campaign", async (req, res) => {
 
 console.log("SCHEDULE REQUEST PLATFORM:", platform);
 
+ 
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         error: "Missing title, description, or publishAt.",
@@ -2138,56 +2139,54 @@ async function runScheduledCampaigns() {
  
       let publishData = null;
  
-const platform = String(campaign.platform || "").trim().toLowerCase();
+      const platform = String(campaign.platform || "").trim().toLowerCase();
 
-console.log(
-  "SCHEDULER DEBUG:",
-  "id =", campaign.id,
-  "raw platform =", campaign.platform,
-  "normalized =", platform
-);
+      console.log(
+        "SCHEDULER DEBUG:",
+        "id =", campaign.id,
+        "raw platform =", campaign.platform,
+        "normalized =", platform
+      );
 
-if (platform === "facebook") {
-  publishData = await publishFacebookPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-    pageId: campaign.page_id,
-  });
-} else if (platform === "instagram") {
-  console.log("Publishing Instagram campaign:", campaign.id);
-
-  publishData = await publishInstagramPost({
-    title: campaign.title,
-    description: campaign.description,
-    imageUrl: campaign.image_url,
-  });
-} else if (platform === "x") {
-  console.log("Publishing X campaign:", campaign.id);
-
-  publishData = await publishXPost({
-    title: campaign.title,
-    description: campaign.description,
-    productLink: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
-} else {
-  console.log(
-    "Publishing Pinterest campaign:",
-    campaign.id,
-    "platform =",
-    campaign.platform
-  );
-
-  publishData = await publishPinterestPin({
-    boardId: campaign.board_id,
-    title: campaign.title,
-    description: campaign.description,
-    link: campaign.product_link,
-    imageUrl: campaign.image_url,
-  });
-}
+      if (platform === "facebook") {
+        publishData = await publishFacebookPost({
+          title: campaign.title,
+          description: campaign.description,
+          productLink: campaign.product_link,
+          imageUrl: campaign.image_url,
+          pageId: campaign.page_id,
+        });
+      } else if (platform === "instagram") {
+        console.log("Publishing Instagram campaign:", campaign.id);
+        publishData = await publishInstagramPost({
+          title: campaign.title,
+          description: campaign.description,
+          imageUrl: campaign.image_url,
+        });
+      } else if (platform === "x") {
+        console.log("Publishing X campaign:", campaign.id);
+        publishData = await publishXPost({
+          title: campaign.title,
+          description: campaign.description,
+          productLink: campaign.product_link,
+          imageUrl: campaign.image_url,
+        });
+      } else if (platform === "pinterest") {
+        publishData = await publishPinterestPin({
+          boardId: campaign.board_id,
+          title: campaign.title,
+          description: campaign.description,
+          link: campaign.product_link,
+          imageUrl: campaign.image_url,
+        });
+      } else {
+        console.log(
+          "Unknown campaign platform:",
+          campaign.id,
+          "platform =",
+          campaign.platform
+        );
+      }
  
       const repeatType = campaign.repeat_type || "one_time";
       let nextRunDate = null;
@@ -2801,6 +2800,18 @@ FACEBOOK:
 INSTAGRAM:
 - Create a 50-100 word caption using 2-4 complete sentences.
 - Make it feel like real social media storytelling, not a product listing.
+- Focus on searchability, collecting, gifts, decor, and product discovery.
+
+FACEBOOK:
+- Create a conversational post of 60-120 words.
+- Sound human, excited, and natural.
+- Mention what makes the artwork stand out.
+- Include a clear call-to-action.
+- Include the product link if provided.
+
+INSTAGRAM:
+- Create a 50-100 word caption using 2-4 complete sentences.
+- Make it feel like real social media storytelling, not a product listing.
 - Do NOT include URLs.
 - Do NOT include website addresses.
 - Do NOT include domains.
@@ -2821,6 +2832,34 @@ Final check:
 - Instagram should feel visual and story-driven.
 - X should be short and punchy.
 - Return only valid JSON.
+- Pinterest title should be SEO-friendly and under 100 characters.
+- Pinterest description should be keyword-rich and sales-focused.
+- Facebook message should be longer, conversational, and may include the product link.
+- Instagram message must NOT include URLs, website addresses, domains, or product links.
+- Instagram must use link-in-bio wording only.
+- Instagram should include exactly 12 to 15 hashtags.
+- Instagram caption should be 50 to 100 words and consist of 2 to 4 complete sentences.
+- Instagram caption should feel like authentic social media storytelling, not a short product listing.
+- X message must be short, punchy, under 280 characters, and may include the product link.
+- X should use no more than 3 hashtags.
+- Do not copy the X message into the other platforms.
+- Make each platform noticeably different.
+- Use "Tap the link in bio" language only.
+
+X:
+- Create a short punchy post under 260 characters.
+- Use no more than 3 hashtags.
+- Include the product link if provided.
+- Keep it bold, simple, and scroll-stopping.
+
+Final check:
+- Pinterest should be searchable.
+- Facebook should feel conversational.
+- Instagram should feel visual and story-driven.
+- X should be short and punchy.
+- Return only valid JSON.
+`,
+    });
 
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
@@ -2857,6 +2896,9 @@ app.listen(PORT, async () => {
   );
 
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
+  console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
+  console.log("LIVE SERVER VERSION: INSTAGRAM SCHEDULER FIX 1");
+  console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
 
   console.log(
     `Stripe configured: ${
