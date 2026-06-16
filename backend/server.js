@@ -2937,17 +2937,15 @@ INSTAGRAM:
 - Focus on searchability, collecting, gifts, decor, and product discovery.
 
 FACEBOOK:
-- Create a conversational post of 50-100 words.
-- Tell a short story or create excitement around the artwork.
-- Include a natural call-to-action.
-- The product link may be included.
+- Create a conversational post of 60-120 words.
+- Sound human, excited, and natural.
+- Mention what makes the artwork stand out.
+- Include a clear call-to-action.
+- Include the product link if provided.
 
 INSTAGRAM:
-- Create a 50-100 word caption made of 2-4 complete sentences.
-- The caption should feel like authentic social media storytelling, not a product listing.
-- Include exactly 12 to 15 highly relevant hashtags at the end of the caption.
-- Mix broad art hashtags with niche design hashtags.
-- Hashtags should be separated by spaces.
+- Create a 50-100 word caption using 2-4 complete sentences.
+- Make it feel like real social media storytelling, not a product listing.
 - Do NOT include URLs.
 - Do NOT include website addresses.
 - Do NOT include domains.
@@ -2983,14 +2981,17 @@ Final check:
 - Use "Tap the link in bio" language only.
 
 X:
-- Create a short, punchy post under 280 characters.
+- Create a short punchy post under 260 characters.
 - Use no more than 3 hashtags.
-- The product link may be included.
-- Keep it concise and engaging.
+- Include the product link if provided.
+- Keep it bold, simple, and scroll-stopping.
 
-Do not reuse or lightly rewrite the same caption across platforms. Each platform should sound like it was written specifically for that audience.
-`,
-    });
+Final check:
+- Pinterest should be searchable.
+- Facebook should feel conversational.
+- Instagram should feel visual and story-driven.
+- X should be short and punchy.
+- Return only valid JSON.
 
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
