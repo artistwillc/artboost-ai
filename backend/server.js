@@ -989,69 +989,37 @@ postTestRouteAdded: true,
 
 app.post("/x/post", async (req, res) => {
   try {
-    const { message, imageUrl } = req.body;
- 
-    if (!message) {
-      return res.status(400).json({ error: "Missing message" });
+    const { title, description, productLink, imageUrl, message } = req.body;
+
+    const finalTitle = title || "";
+    const finalDescription = description || message || "";
+
+    if (!finalTitle && !finalDescription) {
+      return res.status(400).json({
+        error: "Missing X post title or description.",
+      });
     }
- 
-    const oauth = OAuth({
-      consumer: {
-        key: process.env.X_API_KEY,
-        secret: process.env.X_API_SECRET,
-      },
-      signature_method: "HMAC-SHA1",
-      hash_function(baseString, key) {
-        return CryptoJS.HmacSHA1(baseString, key).toString(CryptoJS.enc.Base64);
-      },
+
+    const result = await publishXPost({
+      title: finalTitle,
+      description: finalDescription,
+      productLink,
+      imageUrl,
     });
- 
-    const token = {
-      key: process.env.X_ACCESS_TOKEN,
-      secret: process.env.X_ACCESS_TOKEN_SECRET,
-    };
- 
-    const requestData = {
-  url: "https://api.twitter.com/2/tweets",
-  method: "POST",
-};
- 
-    const authHeader = oauth.toHeader(oauth.authorize(requestData, token));
- 
-    const response = await fetch(requestData.url, {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text: message,
-      }),
-    });
- 
-    const data = await response.json();
- 
-    if (!response.ok) {
-      console.log("X Post Error:", data);
-      return res.status(response.status).json(data);
-    }
- 
+
     res.json({
       success: true,
       platform: "x",
-      result: data,
+      result,
     });
-    
   } catch (err) {
-  console.error("X post error:", err);
- 
-  res.status(500).json({
-    error: "fetch failed",
-    message: err.message,
-    cause: err.cause || null,
-    stack: err.stack || null,
-  });
-}
+    console.error("X manual post error:", err);
+
+    res.status(500).json({
+      error: "X manual post failed.",
+      details: err.message,
+    });
+  }
 });
  
 app.get("/will-test", (req, res) => {
