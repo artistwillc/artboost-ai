@@ -1872,6 +1872,65 @@ app.get("/facebook/test", (req, res) => {
     hasToken: Boolean(facebookConnection.token),
   });
 });
+
+app.post("/disconnect-platform", async (req, res) => {
+  try {
+    const { platform } = req.body;
+
+    if (!platform) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing platform.",
+      });
+    }
+
+    const normalizedPlatform = String(platform).trim().toLowerCase();
+
+    const { error } = await supabase
+      .from("social_connections")
+      .delete()
+      .eq("platform", normalizedPlatform);
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+
+    if (normalizedPlatform === "facebook") {
+      facebookConnection = {
+        connected: false,
+        token: null,
+        expiresIn: null,
+        connectedAt: null,
+      };
+    }
+
+    if (normalizedPlatform === "pinterest") {
+      pinterestConnection = {
+        connected: false,
+        token: null,
+        tokenType: null,
+        expiresIn: null,
+        scope: null,
+        connectedAt: null,
+      };
+    }
+
+    res.json({
+      success: true,
+      platform: normalizedPlatform,
+    });
+  } catch (err) {
+    console.error("Disconnect platform error:", err);
+
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
  
 app.post("/disconnect-platform", async (req, res) => {
   try {
