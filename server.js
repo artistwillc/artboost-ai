@@ -1393,7 +1393,6 @@ postTestRouteAdded: true,
  
 app.post("/x/post", async (req, res) => {
   try {
-<<<<<<< HEAD
  const { title, description, productLink, imageUrl, message } = req.body;
  const finalTitle = title || "";
  const finalDescription = description || message || "";
@@ -1405,30 +1404,12 @@ app.post("/x/post", async (req, res) => {
     }
  
  const result = await publishXPost({
-=======
-    const { title, description, productLink, imageUrl, message } = req.body;
-
-    const finalTitle = title || "";
-    const finalDescription = description || message || "";
-
-    if (!finalTitle && !finalDescription) {
-      return res.status(400).json({
-        error: "Missing X post title or description.",
-      });
-    }
-
-    const result = await publishXPost({
->>>>>>> 3280a81 (Refactor X post endpoint to handle title and description)
       title: finalTitle,
       description: finalDescription,
       productLink,
       imageUrl,
     });
-<<<<<<< HEAD
  
-=======
-
->>>>>>> 3280a81 (Refactor X post endpoint to handle title and description)
     res.json({
       success: true,
       platform: "x",
@@ -1436,11 +1417,7 @@ app.post("/x/post", async (req, res) => {
     });
   } catch (err) {
     console.error("X manual post error:", err);
-<<<<<<< HEAD
  
-=======
-
->>>>>>> 3280a81 (Refactor X post endpoint to handle title and description)
     res.status(500).json({
       error: "X manual post failed.",
       details: err.message,
