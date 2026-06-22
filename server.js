@@ -2817,12 +2817,16 @@ async function runScheduledCampaigns() {
 });
       } else if (platform === "x") {
         console.log("Publishing X campaign:", campaign.id);
-        publishData = await publishXPost({
-          title: campaign.title,
-          description: campaign.description,
-          productLink: campaign.product_link,
-          imageUrl: campaign.image_url,
-        });
+        const xHasProductLink =
+  Boolean(campaign.product_link) ||
+  /https?:\/\/[^\s]+|redbubble\.com\/[^\s]+/i.test(campaign.description || "");
+
+publishData = await publishXPost({
+  title: campaign.title,
+  description: campaign.description,
+  productLink: campaign.product_link,
+  imageUrl: xHasProductLink ? null : campaign.image_url,
+});
       } else if (platform === "pinterest") {
         publishData = await publishPinterestPin({
           boardId: campaign.board_id,
