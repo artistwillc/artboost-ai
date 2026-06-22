@@ -52,7 +52,7 @@ export default function ConnectionsScreen() {
     try {
       const response = await fetch(`${BACKEND_URL}/pinterest/status`);
       const data = await response.json();
-      console.log("Facebook response:", data);
+
       const saved = await AsyncStorage.getItem("artboost_connections");
       const current = saved ? JSON.parse(saved) : {};
 
@@ -125,13 +125,68 @@ export default function ConnectionsScreen() {
     );
   };
 
+  const disconnectPlatform = async (platform: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/disconnect-platform`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          platform,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || `Failed to disconnect ${platform}.`);
+      }
+
+      const updated = {
+        ...connections,
+        [platform]: false,
+      };
+
+      await saveConnections(updated);
+      await refreshAllStatuses();
+
+      Alert.alert(
+        `${platform} Disconnected`,
+        `${platform} has been disconnected successfully.`
+      );
+    } catch (err: any) {
+      console.log(`${platform} disconnect failed:`, err);
+
+      Alert.alert(
+        "Disconnect Failed",
+        err.message || `Failed to disconnect ${platform}.`
+      );
+    }
+  };
+
+  const confirmDisconnect = (platform: string) => {
+    Alert.alert(
+      `Disconnect ${platform}?`,
+      `You will need to reconnect ${platform} before posting to it again.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Disconnect",
+          style: "destructive",
+          onPress: () => disconnectPlatform(platform),
+        },
+      ]
+    );
+  };
+
   const toggleConnection = async (platform: string) => {
     if (platform === "Pinterest") {
       if (connections.Pinterest) {
-        Alert.alert(
-          "Pinterest Connected",
-          "Pinterest is connected through the ArtBoost backend."
-        );
+        confirmDisconnect("Pinterest");
       } else {
         await connectPinterest();
       }
@@ -141,10 +196,7 @@ export default function ConnectionsScreen() {
 
     if (platform === "Facebook") {
       if (connections.Facebook) {
-        Alert.alert(
-          "Facebook Connected",
-          "Facebook is connected through the ArtBoost backend."
-        );
+        confirmDisconnect("Facebook");
       } else {
         await connectFacebook();
       }
@@ -152,18 +204,21 @@ export default function ConnectionsScreen() {
       return;
     }
 
+    if (connections[platform]) {
+      confirmDisconnect(platform);
+      return;
+    }
+
     const updated = {
       ...connections,
-      [platform]: !connections[platform],
+      [platform]: true,
     };
 
     await saveConnections(updated);
 
     Alert.alert(
-      updated[platform] ? `${platform} Connected` : `${platform} Disconnected`,
-      updated[platform]
-        ? `Your ${platform} account is now connected.`
-        : `Your ${platform} account was disconnected.`
+      `${platform} Connected`,
+      `Your ${platform} account is now connected.`
     );
   };
 
@@ -224,17 +279,28 @@ export default function ConnectionsScreen() {
                 </Text>
               </View>
 
-              <Pressable
-                style={[
-                  styles.button,
-                  connected ? styles.disconnect : styles.connect,
-                ]}
-                onPress={() => toggleConnection(platform.name)}
-              >
-                <Text style={styles.buttonText}>
-                  {connected ? "Connected" : "Connect"}
-                </Text>
-              </Pressable>
+              <View style={styles.buttonColumn}>
+                <Pressable
+                  style={[
+                    styles.button,
+                    connected ? styles.reconnectButton : styles.connect,
+                  ]}
+                  onPress={() => toggleConnection(platform.name)}
+                >
+                  <Text style={styles.buttonText}>
+                    {connected ? "Reconnect" : "Connect"}
+                  </Text>
+                </Pressable>
+
+                {connected && (
+                  <Pressable
+                    style={[styles.button, styles.disconnect]}
+                    onPress={() => confirmDisconnect(platform.name)}
+                  >
+                    <Text style={styles.buttonText}>Disconnect</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
           </View>
         );
@@ -347,24 +413,34 @@ const styles = StyleSheet.create({
     color: "#999",
   },
 
+  buttonColumn: {
+    minWidth: 112,
+  },
+
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
     borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 8,
   },
 
   connect: {
     backgroundColor: "#12a86b",
   },
 
+  reconnectButton: {
+    backgroundColor: "#2d6cdf",
+  },
+
   disconnect: {
-    backgroundColor: "#444",
+    backgroundColor: "#a62828",
   },
 
   buttonText: {
     color: "#fff",
     fontWeight: "700",
-    fontSize: 15,
+    fontSize: 14,
   },
 
   proBadge: {
