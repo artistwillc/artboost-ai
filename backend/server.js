@@ -91,6 +91,43 @@ async function createNotification({
     console.log("Notification error:", err.message);
   }
 }
+
+async function checkCampaignLimit(userId, platform) {
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select(
+      "subscription_tier, monthly_campaign_count, campaign_reset_date"
+    )
+    .eq("id", userId)
+    .single();
+
+  if (error || !profile) {
+    throw new Error("Unable to verify subscription.");
+  }
+
+  const tier = profile.subscription_tier || "free";
+
+  if (tier === "free") {
+
+    if (String(platform).toLowerCase() !== "pinterest") {
+      return {
+        allowed: false,
+        reason: "Free users can only use Pinterest."
+      };
+    }
+
+    if ((profile.monthly_campaign_count || 0) >= 5) {
+      return {
+        allowed: false,
+        reason: "Free users are limited to 5 campaigns per month."
+      };
+    }
+  }
+
+  return {
+    allowed: true
+  };
+}
  
 async function updateProfileByUserIdOrEmail({ userId, email, updateData }) {
   if (userId) {
@@ -1994,6 +2031,19 @@ app.post("/schedule-campaign", async (req, res) => {
   nextRunAt,
   repeatUntil,
 } = req.body;
+
+const limitCheck = await checkCampaignLimit(
+  userId,
+  platform
+);
+
+if (!limitCheck.allowed) {
+  return res.status(403).json({
+    success: false,
+    upgradeRequired: true,
+    message: limitCheck.reason,
+  });
+}
 
 console.log("SCHEDULE REQUEST PLATFORM:", platform);
 
