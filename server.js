@@ -2281,8 +2281,7 @@ message +=
   };
  
   let mediaId = null;
- 
-  console.log("X PRODUCT LINK:", productLink);
+console.log("X PRODUCT LINK:", productLink);
 console.log("X HAS PRODUCT LINK:", Boolean(productLink));
 console.log("X HAS IMAGE URL:", Boolean(imageUrl));
 console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
@@ -2290,7 +2289,6 @@ console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
 if (imageUrl && !hasProductLink) {
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
- 
     const uploadRequestData = {
       url: "https://upload.twitter.com/1.1/media/upload.json",
       method: "POST",
