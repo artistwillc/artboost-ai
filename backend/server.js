@@ -1393,18 +1393,17 @@ postTestRouteAdded: true,
  
 app.post("/x/post", async (req, res) => {
   try {
-    const { title, description, productLink, imageUrl, message } = req.body;
- 
-    const finalTitle = title || "";
-    const finalDescription = description || message || "";
+ const { title, description, productLink, imageUrl, message } = req.body;
+ const finalTitle = title || "";
+ const finalDescription = description || message || "";
  
     if (!finalTitle && !finalDescription) {
-      return res.status(400).json({
-        error: "Missing X post title or description.",
-      });
+    return res.status(400).json({
+    error: "Missing X post title or description.",
+    });
     }
  
-    const result = await publishXPost({
+ const result = await publishXPost({
       title: finalTitle,
       description: finalDescription,
       productLink,
@@ -2281,26 +2280,14 @@ message +=
   };
  
   let mediaId = null;
-<<<<<<< HEAD
- 
-  console.log("X PRODUCT LINK:", productLink);
+console.log("X PRODUCT LINK:", productLink);
 console.log("X HAS PRODUCT LINK:", Boolean(productLink));
 console.log("X HAS IMAGE URL:", Boolean(imageUrl));
 console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
  
 if (imageUrl && !hasProductLink) {
-=======
-
-  console.log("X PRODUCT LINK:", productLink);
-console.log("X HAS PRODUCT LINK:", Boolean(productLink));
-console.log("X HAS IMAGE URL:", Boolean(imageUrl));
-console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !productLink));
-
-  if (imageUrl && !productLink) {
->>>>>>> 1b49a18 (Update imageUrl condition to check productLink)
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
- 
     const uploadRequestData = {
       url: "https://upload.twitter.com/1.1/media/upload.json",
       method: "POST",
@@ -2359,6 +2346,11 @@ console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !productLink));
 console.log("X MESSAGE:");
 console.log(message);
  
+
+  console.log("X MESSAGE LENGTH:", message.length);
+
+console.log("X MESSAGE:");
+console.log(message);
 
   console.log("X MESSAGE LENGTH:", message.length);
 

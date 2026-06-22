@@ -1393,18 +1393,17 @@ postTestRouteAdded: true,
  
 app.post("/x/post", async (req, res) => {
   try {
-    const { title, description, productLink, imageUrl, message } = req.body;
- 
-    const finalTitle = title || "";
-    const finalDescription = description || message || "";
+ const { title, description, productLink, imageUrl, message } = req.body;
+ const finalTitle = title || "";
+ const finalDescription = description || message || "";
  
     if (!finalTitle && !finalDescription) {
-      return res.status(400).json({
-        error: "Missing X post title or description.",
-      });
+    return res.status(400).json({
+    error: "Missing X post title or description.",
+    });
     }
  
-    const result = await publishXPost({
+ const result = await publishXPost({
       title: finalTitle,
       description: finalDescription,
       productLink,
@@ -2281,22 +2280,12 @@ message +=
   };
  
   let mediaId = null;
-<<<<<<< HEAD
 console.log("X PRODUCT LINK:", productLink);
 console.log("X HAS PRODUCT LINK:", Boolean(productLink));
 console.log("X HAS IMAGE URL:", Boolean(imageUrl));
 console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
  
 if (imageUrl && !hasProductLink) {
-=======
-
-  console.log("X PRODUCT LINK:", productLink);
-console.log("X HAS PRODUCT LINK:", Boolean(productLink));
-console.log("X HAS IMAGE URL:", Boolean(imageUrl));
-console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !productLink));
-
-  if (imageUrl && !productLink) {
->>>>>>> 21899bf (Update server.js)
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
     const uploadRequestData = {
