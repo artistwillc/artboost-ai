@@ -2208,16 +2208,12 @@ async function runScheduledCampaigns() {
         });
       } else if (platform === "x") {
         console.log("Publishing X campaign:", campaign.id);
-        const xHasProductLink =
-  Boolean(campaign.product_link) ||
-  /https?:\/\/[^\s]+|redbubble\.com\/[^\s]+/i.test(campaign.description || "");
-
-publishData = await publishXPost({
-  title: campaign.title,
-  description: campaign.description,
-  productLink: campaign.product_link,
-  imageUrl: xHasProductLink ? null : campaign.image_url,
-});
+        publishData = await publishXPost({
+          title: campaign.title,
+          description: campaign.description,
+          productLink: campaign.product_link,
+          imageUrl: campaign.image_url,
+        });
       } else if (platform === "pinterest") {
         publishData = await publishPinterestPin({
           boardId: campaign.board_id,
@@ -2272,8 +2268,9 @@ publishData = await publishXPost({
             status: "scheduled",
             published_at: new Date().toISOString(),
             pin_data: publishData,
-            error: null,
-            updated_at: new Date().toISOString(),
+error: null,
+posts: (campaign.posts || 0) + 1,
+updated_at: new Date().toISOString(),
           })
           .eq("id", campaign.id);
  
@@ -2290,10 +2287,11 @@ publishData = await publishXPost({
           .from("scheduled_campaigns")
           .update({
             status: "published",
-            published_at: new Date().toISOString(),
-            pin_data: publishData,
-            error: null,
-            updated_at: new Date().toISOString(),
+published_at: new Date().toISOString(),
+pin_data: publishData,
+error: null,
+posts: (campaign.posts || 0) + 1,
+updated_at: new Date().toISOString(),
           })
           .eq("id", campaign.id);
  
