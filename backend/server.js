@@ -1872,6 +1872,11 @@ const message = [title, finalDescription, linkText]
     };
   }
 
+  console.log("X MESSAGE LENGTH:", message.length);
+
+console.log("X MESSAGE:");
+console.log(message);
+
   const response = await fetch(tweetRequestData.url, {
     method: "POST",
     headers: {
