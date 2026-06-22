@@ -1815,6 +1815,11 @@ const message = [title, finalDescription, linkText]
 
   let mediaId = null;
 
+  console.log("X PRODUCT LINK:", productLink);
+console.log("X HAS PRODUCT LINK:", Boolean(productLink));
+console.log("X HAS IMAGE URL:", Boolean(imageUrl));
+console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !productLink));
+
   if (imageUrl && !productLink) {
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
