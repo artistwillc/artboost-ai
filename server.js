@@ -1752,14 +1752,23 @@ ${description}`;
 }
 
 async function publishXPost({ title, description, productLink, imageUrl }) {
-  const linkText = productLink || "";
+  const finalDescription = description || "";
 
-const finalDescription = description || "";
+  const extractedLink =
+    finalDescription.match(/https?:\/\/[^\s]+|redbubble\.com\/[^\s]+/i)?.[0] || "";
 
-const message = [title, finalDescription, linkText]
-  .filter(Boolean)
-  .join("\n\n")
-  .trim();
+  const linkText = productLink || extractedLink || "";
+
+  const cleanedDescription = finalDescription
+    .replace(/https?:\/\/[^\s]+|redbubble\.com\/[^\s]+/gi, "")
+    .trim();
+
+  const message = [title, cleanedDescription, linkText]
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+
+  const hasProductLink = Boolean(linkText);
 
   if (!message) {
     throw new Error("Missing X post message");
@@ -1786,9 +1795,9 @@ const message = [title, finalDescription, linkText]
   console.log("X PRODUCT LINK:", productLink);
 console.log("X HAS PRODUCT LINK:", Boolean(productLink));
 console.log("X HAS IMAGE URL:", Boolean(imageUrl));
-console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !productLink));
+console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
 
-  if (imageUrl && !productLink) {
+if (imageUrl && !hasProductLink) {
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
 
