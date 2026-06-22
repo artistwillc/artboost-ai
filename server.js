@@ -1815,7 +1815,7 @@ const message = [title, finalDescription, linkText]
 
   let mediaId = null;
 
-  if (imageUrl) {
+  if (imageUrl && !productLink) {
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
 
