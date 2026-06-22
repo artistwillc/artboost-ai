@@ -2281,6 +2281,7 @@ message +=
   };
  
   let mediaId = null;
+<<<<<<< HEAD
  
   console.log("X PRODUCT LINK:", productLink);
 console.log("X HAS PRODUCT LINK:", Boolean(productLink));
@@ -2288,6 +2289,10 @@ console.log("X HAS IMAGE URL:", Boolean(imageUrl));
 console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
  
 if (imageUrl && !hasProductLink) {
+=======
+
+  if (imageUrl && !productLink) {
+>>>>>>> 1b49a18 (Update imageUrl condition to check productLink)
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
  
