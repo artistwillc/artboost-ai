@@ -1376,6 +1376,10 @@ const applyReferralCode = async () => {
     <Text style={styles.queueTitle}>Your Referral Code</Text>
 
     <Text style={styles.queueText}>
+  Successful Referrals: {profile?.referral_count || 0}
+</Text>
+
+    <Text style={styles.queueText}>
       {profile?.referral_code || "Loading..."}
     </Text>
 
