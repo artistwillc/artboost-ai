@@ -1918,6 +1918,19 @@ Pinterest
           </View>
         )}
 <View style={styles.presetRow}>
+
+  <Pressable
+    style={[
+      styles.presetButton,
+      repostPreset === null && styles.presetButtonActive,
+    ]}
+    onPress={() => {
+  setRepostPreset(null);
+}}
+  >
+    <Text style={styles.presetButtonText}>One Time</Text>
+  </Pressable>
+
   <Pressable
     style={[
       styles.presetButton,
@@ -1927,7 +1940,7 @@ Pinterest
   >
     <Text style={styles.presetButtonText}>Daily</Text>
   </Pressable>
- 
+
   <Pressable
     style={[
       styles.presetButton,
@@ -1937,7 +1950,7 @@ Pinterest
   >
     <Text style={styles.presetButtonText}>Every 3 Days</Text>
   </Pressable>
- 
+
   <Pressable
     style={[
       styles.presetButton,
@@ -1947,7 +1960,7 @@ Pinterest
   >
     <Text style={styles.presetButtonText}>Weekly</Text>
   </Pressable>
- 
+
   <Pressable
     style={[
       styles.presetButton,
@@ -1957,6 +1970,7 @@ Pinterest
   >
     <Text style={styles.presetButtonText}>Monthly</Text>
   </Pressable>
+
 </View>
         <Text style={styles.helperText}>
           ArtBoost will convert your selected date and time into backend
