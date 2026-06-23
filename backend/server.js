@@ -2346,15 +2346,11 @@ async function publishFacebookPost({
   const message = `${title}
  
 ${description}
-<<<<<<< HEAD
 
 ${cta || ""}
 
 ${hashtags || ""}
 
-=======
- 
->>>>>>> 3bb5b51 (Enhance subscription and referral code logic)
 ${productLink || ""}`;
  
   const response = await fetch(
