@@ -8,6 +8,15 @@ cd /d E:\ArtBoostAI\backend
 npm start
 
 
+Backend push commands
+git add .
+
+git commit -m "Sync subscription_tier with Stripe events"
+
+git pull origin main --rebase
+
+git push origin main
+
 
 cd /d E:\ArtBoostAI\frontend
 npx expo start
@@ -20,3 +29,9 @@ git status
 git add .
 git commit -m "Your update message"
 git push
+
+
+
+
+https://ganediqbiawagnefbiop.supabase.co
+https://ganediqbiawagnefbiop.supabase.co
