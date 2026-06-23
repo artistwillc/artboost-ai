@@ -208,11 +208,12 @@ async function syncStripeSubscriptionForUser({ userId, email }) {
  
   if (!customers.data.length) {
     const updateData = {
-      is_pro: false,
-      subscription_status: "free",
-      plan: "free",
-      updated_at: new Date().toISOString(),
-    };
+  is_pro: false,
+  subscription_tier: "free",
+  subscription_status: "free",
+  plan: "free",
+  updated_at: new Date().toISOString(),
+};
  
     await updateProfileByUserIdOrEmail({
       userId,
@@ -263,6 +264,7 @@ async function syncStripeSubscriptionForUser({ userId, email }) {
  
     const updateData = {
       is_pro: false,
+      subscription_tier: "free",
       subscription_status: "free",
       plan: "free",
       stripe_customer_id: newestCustomer.id,
@@ -305,14 +307,15 @@ async function syncStripeSubscriptionForUser({ userId, email }) {
     : null;
  
   const updateData = {
-    is_pro: isActive,
-    subscription_status: subscription.status,
-    plan: isActive ? plan : "free",
-    stripe_customer_id: customer.id,
-    stripe_subscription_id: subscription.id,
-    current_period_end: currentPeriodEnd,
-    updated_at: new Date().toISOString(),
-  };
+  is_pro: isActive,
+  subscription_tier: isActive ? "pro" : "free",
+  subscription_status: subscription.status,
+  plan: isActive ? plan : "free",
+  stripe_customer_id: customer.id,
+  stripe_subscription_id: subscription.id,
+  current_period_end: currentPeriodEnd,
+  updated_at: new Date().toISOString(),
+};
  
   await updateProfileByUserIdOrEmail({
     userId,
@@ -359,13 +362,14 @@ app.post(
             session.metadata?.userEmail || session.customer_details?.email || "";
  
           const updateData = {
-            is_pro: true,
-            subscription_status: "active",
-            plan,
-            stripe_customer_id: session.customer,
-            stripe_subscription_id: session.subscription,
-            updated_at: new Date().toISOString(),
-          };
+  is_pro: true,
+  subscription_tier: "pro",
+  subscription_status: "active",
+  plan,
+  stripe_customer_id: session.customer,
+  stripe_subscription_id: session.subscription,
+  updated_at: new Date().toISOString(),
+};
  
           await updateProfileByUserIdOrEmail({
             userId,
@@ -409,14 +413,15 @@ app.post(
             : null;
  
           const updateData = {
-            is_pro: isActive,
-            subscription_status: status,
-            plan: isActive ? plan : "free",
-            stripe_customer_id: customerId,
-            stripe_subscription_id: subscription.id,
-            current_period_end: currentPeriodEnd,
-            updated_at: new Date().toISOString(),
-          };
+  is_pro: isActive,
+  subscription_tier: isActive ? "pro" : "free",
+  subscription_status: status,
+  plan: isActive ? plan : "free",
+  stripe_customer_id: customerId,
+  stripe_subscription_id: subscription.id,
+  current_period_end: currentPeriodEnd,
+  updated_at: new Date().toISOString(),
+};
  
           const updated = await updateProfileByUserIdOrEmail({
             userId,
@@ -442,11 +447,12 @@ app.post(
           const customerEmail = subscription.metadata?.userEmail || "";
  
           const updateData = {
-            is_pro: false,
-            subscription_status: "cancelled",
-            plan: "free",
-            updated_at: new Date().toISOString(),
-          };
+  is_pro: false,
+  subscription_tier: "free",
+  subscription_status: "cancelled",
+  plan: "free",
+  updated_at: new Date().toISOString(),
+};
  
           const updated = await updateProfileByUserIdOrEmail({
             userId,
@@ -491,14 +497,15 @@ app.post(
           const customerId = invoice.customer;
  
           await supabase
-            .from("profiles")
-            .update({
-              is_pro: false,
-              subscription_status: "payment_failed",
-              plan: "free",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("stripe_customer_id", customerId);
+  .from("profiles")
+  .update({
+    is_pro: false,
+    subscription_tier: "free",
+    subscription_status: "payment_failed",
+    plan: "free",
+    updated_at: new Date().toISOString(),
+  })
+  .eq("stripe_customer_id", customerId);
  
           console.log("Payment failed:", customerId);
           break;
@@ -1912,8 +1919,7 @@ message +=
   variations[Math.floor(Math.random() * variations.length)];
 
   const hasProductLink = Boolean(linkText);
-  const hasImage = Boolean(imageUrl);
-
+  
   if (!message) {
     throw new Error("Missing X post message");
   }
