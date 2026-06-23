@@ -2050,111 +2050,183 @@ app.post("/pinterest/create-pin", async (req, res) => {
 app.post("/schedule-campaign", async (req, res) => {
   try {
     const {
-  userId,
-  title,
-  description,
-  imageUrl,
-  productLink,
-  boardId,
-  hashtags,
-  cta,
-  pageId,
-  publishAt,
-  platform,
-  campaignGroupId,
-  repeatType,
-  nextRunAt,
-  repeatUntil,
-} = req.body;
+      userId,
+      title,
+      description,
+      imageUrl,
+      productLink,
+      boardId,
+      hashtags,
+      cta,
+      pageId,
+      publishAt,
+      platform,
+      campaignGroupId,
+      repeatType,
+      nextRunAt,
+      repeatUntil,
+    } = req.body;
 
-const limitCheck = await checkCampaignLimit(
-  userId,
-  platform
-);
+    const normalizedPlatform = String(platform || "Pinterest").trim();
+    const platformKey = normalizedPlatform.toLowerCase();
 
-if (!limitCheck.allowed) {
-  return res.status(403).json({
-    success: false,
-    upgradeRequired: true,
-    message: limitCheck.reason,
-  });
-}
+    console.log("SCHEDULE REQUEST RECEIVED:", {
+      userId,
+      platform: normalizedPlatform,
+      hasTitle: Boolean(title),
+      hasDescription: Boolean(description),
+      hasImageUrl: Boolean(imageUrl),
+      hasPublishAt: Boolean(publishAt),
+      hasBoardId: Boolean(boardId),
+      hasPageId: Boolean(pageId),
+      hasHashtags: Boolean(hashtags),
+      hasCta: Boolean(cta),
+    });
 
-console.log("SCHEDULE REQUEST PLATFORM:", platform);
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
 
- 
     if (!title || !description || !publishAt) {
       return res.status(400).json({
+        success: false,
         error: "Missing title, description, or publishAt.",
       });
     }
- 
+
+    if (!imageUrl) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing imageUrl.",
+      });
+    }
+
+    if (!["pinterest", "facebook", "instagram", "x"].includes(platformKey)) {
+      return res.status(400).json({
+        success: false,
+        error: `Unsupported platform: ${normalizedPlatform}`,
+      });
+    }
+
+    if (platformKey === "pinterest" && !boardId) {
+      return res.status(400).json({
+        success: false,
+        error: "Pinterest requires a boardId.",
+      });
+    }
+
+    if (platformKey === "facebook" && !pageId) {
+      return res.status(400).json({
+        success: false,
+        error: "Facebook requires a pageId.",
+      });
+    }
+
+    const limitCheck = await checkCampaignLimit(userId, normalizedPlatform);
+
+    if (!limitCheck.allowed) {
+      return res.status(403).json({
+        success: false,
+        upgradeRequired: true,
+        error: limitCheck.reason,
+      });
+    }
+
     const finalRepeatType = repeatType || "one_time";
+
     const calculatedNextRun =
       nextRunAt || (finalRepeatType !== "one_time" ? publishAt : null);
- 
+
+    const insertPayload = {
+      user_id: userId,
+      platform: normalizedPlatform,
+      campaign_group_id: campaignGroupId || null,
+      title,
+      description,
+      hashtags: hashtags || null,
+      cta: cta || null,
+      image_url: imageUrl,
+      product_link: productLink || null,
+      board_id: platformKey === "pinterest" ? boardId : null,
+      page_id: platformKey === "facebook" ? pageId : null,
+      publish_at: publishAt,
+      status: "scheduled",
+      campaign_status: "active",
+      repeat_type: finalRepeatType,
+      next_run_at: calculatedNextRun,
+      repeat_until: repeatUntil || null,
+      error: null,
+      updated_at: new Date().toISOString(),
+    };
+
     const { data, error } = await supabase
       .from("scheduled_campaigns")
-      .insert({
-        user_id: userId || null,
-        platform: platform || "Pinterest",
-        campaign_group_id: campaignGroupId || null,
-        title,
-        description,
-        image_url: imageUrl || null,
-        hashtags: hashtags || null,
-        cta: cta || null,
-        product_link: productLink || null,
-        board_id: boardId || null,
-        page_id: pageId || null,
-        publish_at: publishAt,
-        status: "scheduled",
-        campaign_status: "active",
-        repeat_type: finalRepeatType,
-        next_run_at: calculatedNextRun,
-        repeat_until: repeatUntil || null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
- 
+
     if (error) {
+      console.log("SCHEDULE INSERT FAILED:", {
+        platform: normalizedPlatform,
+        error: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        payload: insertPayload,
+      });
+
       return res.status(500).json({
+        success: false,
         error: "Failed to save scheduled campaign.",
         details: error.message,
+        code: error.code,
+        hint: error.hint,
       });
     }
 
     if (userId) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("subscription_tier, monthly_campaign_count")
-    .eq("id", userId)
-    .single();
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("subscription_tier, monthly_campaign_count")
+        .eq("id", userId)
+        .single();
 
-  if ((profile?.subscription_tier || "free") === "free") {
-    await supabase
-      .from("profiles")
-      .update({
-        monthly_campaign_count:
-          (profile?.monthly_campaign_count || 0) + 1,
-      })
-      .eq("id", userId);
-  }
-}
- 
+      if (!profileError && (profile?.subscription_tier || "free") === "free") {
+        await supabase
+          .from("profiles")
+          .update({
+            monthly_campaign_count:
+              (profile?.monthly_campaign_count || 0) + 1,
+          })
+          .eq("id", userId);
+      }
+    }
+
     await createNotification({
       userId,
       title: "Campaign Scheduled",
-      message: `Your ${platform || "Pinterest"} campaign "${title}" was scheduled successfully.`,
+      message: `Your ${normalizedPlatform} campaign "${title}" was scheduled successfully.`,
       type: "success",
     });
- 
+
+    console.log("SCHEDULE INSERT SUCCESS:", {
+      id: data.id,
+      platform: normalizedPlatform,
+      title,
+    });
+
     res.json({
       success: true,
       campaign: mapCampaignFromDb(data),
     });
   } catch (err) {
+    console.log("SCHEDULE ROUTE CRASH:", err);
+
     res.status(500).json({
+      success: false,
       error: "Scheduling request failed.",
       details: err.message,
     });
