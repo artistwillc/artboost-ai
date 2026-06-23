@@ -3691,6 +3691,78 @@ Final check:
     });
   }
 });
+
+app.post("/apply-referral", async (req, res) => {
+  try {
+    const { userId, referralCode } = req.body;
+
+    if (!userId || !referralCode) {
+      return res.status(400).json({
+        error: "Missing userId or referral code."
+      });
+    }
+
+    const { data: currentUser, error: currentError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (currentError || !currentUser) {
+      return res.status(404).json({
+        error: "User not found."
+      });
+    }
+
+    if (currentUser.referral_used) {
+      return res.status(400).json({
+        error: "Referral already used."
+      });
+    }
+
+    const { data: referrer, error: refError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("referral_code", referralCode.toUpperCase())
+      .single();
+
+    if (refError || !referrer) {
+      return res.status(404).json({
+        error: "Invalid referral code."
+      });
+    }
+
+    if (referrer.id === userId) {
+      return res.status(400).json({
+        error: "You cannot refer yourself."
+      });
+    }
+
+    await supabase
+      .from("profiles")
+      .update({
+        referred_by: referralCode.toUpperCase(),
+        referral_used: true
+      })
+      .eq("id", userId);
+
+    await supabase
+      .from("profiles")
+      .update({
+        free_months: (referrer.free_months || 0) + 1
+      })
+      .eq("id", referrer.id);
+
+    res.json({
+      success: true
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
  
 app.post("/apply-referral", async (req, res) => {
   try {
