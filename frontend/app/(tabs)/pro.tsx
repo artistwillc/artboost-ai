@@ -1411,7 +1411,8 @@ const applyReferralCode = async () => {
     </Pressable>
   </View>
 
-  {!profile?.referral_used && (
+  {profile?.subscription_tier !== "pro" &&
+ !profile?.referral_used && (
     <>
       <Text style={styles.label}>Enter Referral Code</Text>
 
