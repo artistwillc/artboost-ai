@@ -322,4 +322,8 @@ const styles = StyleSheet.create({
     color: "#AAB2C0",
     marginTop: 5,
   },
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> 82856e9 (Improve analytics dashboard UI)
