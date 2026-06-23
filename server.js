@@ -109,11 +109,34 @@ async function checkCampaignLimit(userId, platform) {
 
   if (tier === "free") {
 
+    // Free users only get Pinterest
     if (String(platform).toLowerCase() !== "pinterest") {
       return {
         allowed: false,
         reason: "Free users can only use Pinterest."
       };
+    }
+
+    // Monthly reset
+    const now = new Date();
+    const resetDate = profile.campaign_reset_date
+      ? new Date(profile.campaign_reset_date)
+      : null;
+
+    if (!resetDate || now >= resetDate) {
+
+      const nextReset = new Date();
+      nextReset.setMonth(nextReset.getMonth() + 1);
+
+      await supabase
+        .from("profiles")
+        .update({
+          monthly_campaign_count: 0,
+          campaign_reset_date: nextReset.toISOString()
+        })
+        .eq("id", userId);
+
+      profile.monthly_campaign_count = 0;
     }
 
     if ((profile.monthly_campaign_count || 0) >= 5) {
