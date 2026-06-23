@@ -53,6 +53,8 @@ const mapCampaignFromDb = (item) => ({
   title: item.title,
   description: item.description,
   imageUrl: item.image_url,
+  hashtags: item.hashtags,
+  cta: item.cta,
   productLink: item.product_link,
   boardId: item.board_id,
   publishAt: item.publish_at,
@@ -1812,7 +1814,13 @@ ${productLink || ""}`;
   return data;
 }
 
-async function publishInstagramPost({ title, description, imageUrl }) {
+async function publishInstagramPost({
+  title,
+  description,
+  hashtags,
+  cta,
+  imageUrl,
+}) {
   const instagramUserId = process.env.INSTAGRAM_USER_ID;
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
 
@@ -1824,9 +1832,11 @@ async function publishInstagramPost({ title, description, imageUrl }) {
     throw new Error("Instagram requires an imageUrl to publish.");
   }
 
-  const message = `${title}
+  const message = `${description}
 
-${description}`;
+${cta || "Tap the link in bio to grab yours today."}
+
+${hashtags || ""}`;
 
   const createContainerResponse = await fetch(
     `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
@@ -2046,6 +2056,8 @@ app.post("/schedule-campaign", async (req, res) => {
   imageUrl,
   productLink,
   boardId,
+  hashtags,
+  cta,
   pageId,
   publishAt,
   platform,
@@ -2090,6 +2102,8 @@ console.log("SCHEDULE REQUEST PLATFORM:", platform);
         title,
         description,
         image_url: imageUrl || null,
+        hashtags: hashtags || null,
+        cta: cta || null,
         product_link: productLink || null,
         board_id: boardId || null,
         page_id: pageId || null,
@@ -2352,10 +2366,12 @@ async function runScheduledCampaigns() {
       } else if (platform === "instagram") {
         console.log("Publishing Instagram campaign:", campaign.id);
         publishData = await publishInstagramPost({
-          title: campaign.title,
-          description: campaign.description,
-          imageUrl: campaign.image_url,
-        });
+  title: campaign.title,
+  description: campaign.description,
+  hashtags: campaign.hashtags,
+  cta: campaign.cta,
+  imageUrl: campaign.image_url,
+});
       } else if (platform === "x") {
         console.log("Publishing X campaign:", campaign.id);
         publishData = await publishXPost({
