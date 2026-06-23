@@ -869,6 +869,104 @@ app.post("/sync-subscription", async (req, res) => {
     });
   }
 });
+
+app.post("/apply-referral", async (req, res) => {
+  try {
+    const { userId, referralCode } = req.body;
+
+    if (!userId || !referralCode) {
+      return res.status(400).json({
+        error: "Missing userId or referral code.",
+      });
+    }
+
+    const cleanCode = String(referralCode).trim().toUpperCase();
+
+    const { data: userProfile, error: userError } = await supabase
+      .from("profiles")
+      .select("id, referral_code, referral_used")
+      .eq("id", userId)
+      .single();
+
+    if (userError || !userProfile) {
+      return res.status(404).json({
+        error: "User profile not found.",
+      });
+    }
+
+    if (userProfile.referral_used) {
+      return res.status(400).json({
+        error: "A referral code has already been used on this account.",
+      });
+    }
+
+    if (
+      userProfile.referral_code &&
+      userProfile.referral_code.toUpperCase() === cleanCode
+    ) {
+      return res.status(400).json({
+        error: "You cannot use your own referral code.",
+      });
+    }
+
+    const { data: referrerProfile, error: referrerError } = await supabase
+      .from("profiles")
+      .select("id, referral_code, referral_count, free_months")
+      .eq("referral_code", cleanCode)
+      .single();
+
+    if (referrerError || !referrerProfile) {
+      return res.status(404).json({
+        error: "Referral code not found.",
+      });
+    }
+
+    await supabase
+      .from("profiles")
+      .update({
+        referred_by: cleanCode,
+        referral_used: true,
+        free_months: 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    await supabase
+      .from("profiles")
+      .update({
+        referral_count: (referrerProfile.referral_count || 0) + 1,
+        free_months: (referrerProfile.free_months || 0) + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", referrerProfile.id);
+
+    await createNotification({
+      userId,
+      title: "Referral Applied",
+      message: "Your referral code was applied successfully. You earned 1 free month.",
+      type: "success",
+    });
+
+    await createNotification({
+      userId: referrerProfile.id,
+      title: "Referral Reward Earned",
+      message: "Someone used your referral code. You earned 1 free month.",
+      type: "success",
+    });
+
+    res.json({
+      success: true,
+      message: "Referral applied successfully.",
+    });
+  } catch (err) {
+    console.error("Apply referral error:", err);
+
+    res.status(500).json({
+      error: "Failed to apply referral code.",
+      details: err.message,
+    });
+  }
+});
  
 app.post("/create-billing-portal", async (req, res) => {
   try {
