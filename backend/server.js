@@ -1892,12 +1892,27 @@ async function publishXPost({ title, description, productLink, imageUrl }) {
     .replace(/https?:\/\/[^\s]+|redbubble\.com\/[^\s]+/gi, "")
     .trim();
 
-  const message = [title, cleanedDescription, linkText]
-    .filter(Boolean)
-    .join("\n\n")
-    .trim();
+  let message = [title, cleanedDescription, linkText]
+  .filter(Boolean)
+  .join("\n\n")
+  .trim();
+
+  // Prevent duplicate tweet errors
+const variations = [
+  "🔥 Available now",
+  "⚡ Grab yours today",
+  "🏁 Built for hot rod fans",
+  "💀 Limited artwork",
+  "🚀 Check it out",
+  "🐀 Wild rat rod energy",
+];
+
+message +=
+  "\n\n" +
+  variations[Math.floor(Math.random() * variations.length)];
 
   const hasProductLink = Boolean(linkText);
+  const hasImage = Boolean(imageUrl);
 
   if (!message) {
     throw new Error("Missing X post message");
@@ -2543,13 +2558,14 @@ updated_at: new Date().toISOString(),
       }
     } catch (err) {
       await supabase
-        .from("scheduled_campaigns")
-        .update({
-          status: "failed",
-          error: err.message,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", campaign.id);
+  .from("scheduled_campaigns")
+  .update({
+    status: "failed",
+    campaign_status: "paused",
+    error: err.message,
+    updated_at: new Date().toISOString(),
+  })
+  .eq("id", campaign.id);
  
       await createNotification({
         userId: campaign.user_id,
