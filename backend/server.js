@@ -783,24 +783,77 @@ app.get("/health", async (req, res) => {
 app.post("/create-checkout-session", async (req, res) => {
   try {
     const { plan, userEmail, userId } = req.body;
- 
-    const priceId =
-      plan === "yearly"
-        ? process.env.STRIPE_YEARLY_PRICE_ID
-        : process.env.STRIPE_MONTHLY_PRICE_ID;
- 
-    if (!priceId) {
-      return res.status(400).json({
-        error: "Missing Stripe price ID for selected plan.",
-      });
-    }
- 
+
     if (!userEmail || !userId) {
       return res.status(400).json({
         error: "Missing logged-in user information.",
       });
     }
- 
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("free_months")
+      .eq("id", userId)
+      .single();
+
+    if (profileError) {
+      return res.status(500).json({
+        error: "Unable to check free month balance.",
+        details: profileError.message,
+      });
+    }
+
+    const freeMonths = profile?.free_months || 0;
+
+    if (freeMonths > 0) {
+      const periodEnd = new Date();
+      periodEnd.setDate(periodEnd.getDate() + 30);
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          is_pro: true,
+          subscription_tier: "pro",
+          subscription_status: "active",
+          plan: plan || "monthly",
+          free_months: freeMonths - 1,
+          current_period_end: periodEnd.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      if (updateError) {
+        return res.status(500).json({
+          error: "Failed to activate free month.",
+          details: updateError.message,
+        });
+      }
+
+      await createNotification({
+        userId,
+        title: "Free Month Activated",
+        message: "Your referral reward was used to activate 1 free month of ArtBoost AI Pro.",
+        type: "success",
+      });
+
+      return res.json({
+        success: true,
+        usedFreeMonth: true,
+        message: "Free month activated.",
+      });
+    }
+
+    const priceId =
+      plan === "yearly"
+        ? process.env.STRIPE_YEARLY_PRICE_ID
+        : process.env.STRIPE_MONTHLY_PRICE_ID;
+
+    if (!priceId) {
+      return res.status(400).json({
+        error: "Missing Stripe price ID for selected plan.",
+      });
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
@@ -828,7 +881,7 @@ app.post("/create-checkout-session", async (req, res) => {
         userId,
       },
     });
- 
+
     res.json({
       success: true,
       url: session.url,
