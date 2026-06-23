@@ -722,39 +722,118 @@ app.patch("/notifications/read-all/:userId", async (req, res) => {
 app.get("/analytics", async (req, res) => {
   try {
     const { userId } = req.query;
- 
-    let query = supabase.from("scheduled_campaigns").select("*");
- 
+
+    let campaignsQuery = supabase
+      .from("scheduled_campaigns")
+      .select("*");
+
     if (userId) {
-      query = query.eq("user_id", userId);
+      campaignsQuery = campaignsQuery.eq("user_id", userId);
     }
- 
-    const { data, error } = await query;
- 
-    if (error) {
+
+    const { data: campaignsData, error: campaignsError } =
+      await campaignsQuery;
+
+    if (campaignsError) {
       return res.status(500).json({
-        error: error.message,
+        error: campaignsError.message,
       });
     }
- 
-    const campaigns = data || [];
- 
-    const analytics = {
-      total: campaigns.length,
-      scheduled: campaigns.filter((x) => x.status === "scheduled").length,
-      published: campaigns.filter((x) => x.status === "published").length,
-      failed: campaigns.filter((x) => x.status === "failed").length,
-      saved: campaigns.filter((x) => x.status === "saved").length,
-      active: campaigns.filter((x) => x.campaign_status === "active").length,
-      paused: campaigns.filter((x) => x.campaign_status === "paused").length,
-      upcoming:
-        campaigns
-          .filter((x) => x.publish_at && new Date(x.publish_at) > new Date())
-          .sort((a, b) => new Date(a.publish_at) - new Date(b.publish_at))[0] ||
-        null,
+
+    let profile = null;
+
+    if (userId) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("referral_count, free_months, subscription_tier, monthly_campaign_count")
+        .eq("id", userId)
+        .maybeSingle();
+
+      profile = profileData || null;
+    }
+
+    const campaigns = campaignsData || [];
+
+    const totalCampaigns = campaigns.length;
+    const published = campaigns.filter((x) => x.status === "published").length;
+    const failed = campaigns.filter((x) => x.status === "failed").length;
+    const scheduled = campaigns.filter((x) => x.status === "scheduled").length;
+    const saved = campaigns.filter((x) => x.status === "saved").length;
+    const ended = campaigns.filter((x) => x.status === "ended").length;
+
+    const active = campaigns.filter(
+      (x) => x.campaign_status === "active"
+    ).length;
+
+    const paused = campaigns.filter(
+      (x) => x.campaign_status === "paused"
+    ).length;
+
+    const totalPosts = campaigns.reduce(
+      (sum, item) => sum + (Number(item.posts) || 0),
+      0
+    );
+
+    const platformBreakdown = {
+      pinterest: campaigns.filter(
+        (x) => String(x.platform || "").toLowerCase() === "pinterest"
+      ).length,
+      facebook: campaigns.filter(
+        (x) => String(x.platform || "").toLowerCase() === "facebook"
+      ).length,
+      instagram: campaigns.filter(
+        (x) => String(x.platform || "").toLowerCase() === "instagram"
+      ).length,
+      x: campaigns.filter(
+        (x) => String(x.platform || "").toLowerCase() === "x"
+      ).length,
     };
- 
-    res.json(analytics);
+
+    const completedCampaigns = published + failed;
+
+    const successRate =
+      completedCampaigns > 0
+        ? Math.round((published / completedCampaigns) * 100)
+        : 0;
+
+    const averagePostsPerCampaign =
+      totalCampaigns > 0
+        ? Number((totalPosts / totalCampaigns).toFixed(2))
+        : 0;
+
+    const upcoming =
+      campaigns
+        .filter((x) => x.publish_at && new Date(x.publish_at) > new Date())
+        .sort(
+          (a, b) =>
+            new Date(a.publish_at).getTime() -
+            new Date(b.publish_at).getTime()
+        )[0] || null;
+
+    res.json({
+      total: totalCampaigns,
+      totalCampaigns,
+      scheduled,
+      published,
+      failed,
+      saved,
+      ended,
+      active,
+      paused,
+      totalPosts,
+      successRate,
+      averagePostsPerCampaign,
+      platformBreakdown,
+      pinterestPosts: platformBreakdown.pinterest,
+      facebookPosts: platformBreakdown.facebook,
+      instagramPosts: platformBreakdown.instagram,
+      xPosts: platformBreakdown.x,
+      referralCount: profile?.referral_count || 0,
+      freeMonthsEarned: profile?.free_months || 0,
+      subscriptionTier: profile?.subscription_tier || "free",
+      monthlyCampaignCount: profile?.monthly_campaign_count || 0,
+      upcoming,
+    });
   } catch (err) {
     res.status(500).json({
       error: err.message,
