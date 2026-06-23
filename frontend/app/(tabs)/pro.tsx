@@ -62,6 +62,8 @@ export default function ProScreen() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [openingBilling, setOpeningBilling] = useState(false);
   const [syncingSubscription, setSyncingSubscription] = useState(false);
+  const [referralInput, setReferralInput] = useState("");
+  const [applyingReferral, setApplyingReferral] = useState(false);
   const [facebookConnected, setFacebookConnected] = useState(false);
   const [facebookConnectedAt, setFacebookConnectedAt] =
   useState("");
@@ -1197,6 +1199,59 @@ const generateVariations = async () => {
  
     setScheduledDate(updated);
   };
+
+  const copyReferralCode = async () => {
+  if (!profile?.referral_code) {
+    Alert.alert("No Referral Code", "Your referral code is not available yet.");
+    return;
+  }
+
+  await Clipboard.setStringAsync(profile.referral_code);
+  Alert.alert("Copied", "Referral code copied to clipboard.");
+};
+
+const applyReferralCode = async () => {
+  try {
+    if (!session?.user?.id) {
+      Alert.alert("Login Required", "Please log in before using a referral code.");
+      return;
+    }
+
+    if (!referralInput.trim()) {
+      Alert.alert("Missing Code", "Enter a referral code first.");
+      return;
+    }
+
+    setApplyingReferral(true);
+
+    const response = await fetch(`${BACKEND_URL}/apply-referral`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: session.user.id,
+        referralCode: referralInput.trim().toUpperCase(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      Alert.alert("Referral Error", data.error || "Unable to apply referral code.");
+      return;
+    }
+
+    setReferralInput("");
+    await loadProfile(session.user.id);
+
+    Alert.alert("Referral Applied", "Referral code applied successfully.");
+  } catch (err: any) {
+    Alert.alert("Referral Error", err.message || "Failed to apply referral code.");
+  } finally {
+    setApplyingReferral(false);
+  }
+};
  
   useEffect(() => {
 
@@ -1309,6 +1364,64 @@ const generateVariations = async () => {
           </Pressable>
         )}
       </View>
+
+      <View style={styles.card}>
+  <Text style={styles.sectionHeader}>Referral Rewards</Text>
+
+  <Text style={styles.heroText}>
+    Share your referral code and earn free months when new users join ArtBoost AI.
+  </Text>
+
+  <View style={styles.queueCard}>
+    <Text style={styles.queueTitle}>Your Referral Code</Text>
+
+    <Text style={styles.queueText}>
+      {profile?.referral_code || "Loading..."}
+    </Text>
+
+    <Text style={styles.queueText}>
+      Free Months Earned: {profile?.free_months || 0}
+    </Text>
+
+    <Pressable
+      style={styles.smallRefreshButton}
+      onPress={copyReferralCode}
+    >
+      <Text style={styles.smallRefreshText}>Copy Referral Code</Text>
+    </Pressable>
+  </View>
+
+  {!profile?.referral_used && (
+    <>
+      <Text style={styles.label}>Enter Referral Code</Text>
+
+      <TextInput
+        style={styles.input}
+        value={referralInput}
+        onChangeText={setReferralInput}
+        placeholder="Example: ARTISTWILL"
+        placeholderTextColor="#777"
+        autoCapitalize="characters"
+      />
+
+      <Pressable
+        style={styles.upgradeButton}
+        onPress={applyReferralCode}
+        disabled={applyingReferral}
+      >
+        <Text style={styles.publishText}>
+          {applyingReferral ? "Applying..." : "Apply Referral Code"}
+        </Text>
+      </Pressable>
+    </>
+  )}
+
+  {profile?.referral_used && (
+    <Text style={styles.helperText}>
+      Referral code already applied to this account.
+    </Text>
+  )}
+</View>
  
       {!profile?.is_pro && (
         <View style={styles.card}>
