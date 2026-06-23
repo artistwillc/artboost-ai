@@ -1067,7 +1067,7 @@ app.post("/create-checkout-session", async (req, res) => {
         userId,
       },
     });
- 
+
     res.json({
       success: true,
       url: session.url,

@@ -434,14 +434,6 @@ await Linking.openURL(data.url);
  
   const saveScheduledCampaign = async () => {
     try {
-<<<<<<< HEAD
-=======
-      if (profile?.subscription_tier !== "pro") {
-        Alert.alert("Pro Required", "Scheduling is a Pro feature.");
-        return;
-      }
- 
->>>>>>> 1687256 (Change Pro feature checks to subscription tier)
       if (!title || !description) {
         Alert.alert("Missing Content", "Generate or enter campaign content first.");
         return;
