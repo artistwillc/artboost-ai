@@ -2086,6 +2086,24 @@ console.log("SCHEDULE REQUEST PLATFORM:", platform);
         details: error.message,
       });
     }
+
+    if (userId) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("subscription_tier, monthly_campaign_count")
+    .eq("id", userId)
+    .single();
+
+  if ((profile?.subscription_tier || "free") === "free") {
+    await supabase
+      .from("profiles")
+      .update({
+        monthly_campaign_count:
+          (profile?.monthly_campaign_count || 0) + 1,
+      })
+      .eq("id", userId);
+  }
+}
  
     await createNotification({
       userId,
