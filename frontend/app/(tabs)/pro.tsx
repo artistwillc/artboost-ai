@@ -489,47 +489,63 @@ setImageUrl(campaign.imageUrl || "");
   "-" +
   Math.random().toString(36).substring(2, 8);
 
-    for (const platform of platforms) {
-      const response = await fetch(`${BACKEND_URL}/schedule-campaign`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: session?.user?.id || null,
-          title,
-          description,
-          imageUrl,
-          productLink: finalProductLink,
-          boardId: platform === "Pinterest" ? selectedBoard : null,
-          pageId: platform === "Facebook" ? selectedFacebookPage : null,
-          publishAt: getPublishAtIso(),
-          platform,
-          campaignGroupId,
-          repeatType: repostPreset || "one_time",
-          nextRunAt:
-            repostPreset && scheduledDate
-              ? scheduledDate.toISOString()
-              : null,
-        }),
-      });
+    const scheduledPlatforms: string[] = [];
+const failedPlatforms: string[] = [];
 
-      const data = await response.json();
+for (const platform of platforms) {
+  try {
+    const response = await fetch(`${BACKEND_URL}/schedule-campaign`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: session?.user?.id || null,
+        title,
+        description,
+        hashtags,
+        cta,
+        imageUrl,
+        productLink: finalProductLink,
+        boardId: platform === "Pinterest" ? selectedBoard : null,
+        pageId: platform === "Facebook" ? selectedFacebookPage : null,
+        publishAt: getPublishAtIso(),
+        platform,
+        campaignGroupId,
+        repeatType: repostPreset || "one_time",
+        nextRunAt:
+          repostPreset && scheduledDate
+            ? scheduledDate.toISOString()
+            : null,
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error(
-          `${platform}: ${data.error || "Failed to schedule campaign."}`
-        );
-      }
+    const data = await response.json();
+
+    if (!response.ok) {
+      failedPlatforms.push(platform);
+      console.log(`${platform} schedule failed:`, data);
+      continue;
     }
+
+    scheduledPlatforms.push(platform);
+  } catch (err) {
+    failedPlatforms.push(platform);
+    console.log(`${platform} schedule error:`, err);
+  }
+}
 
     await loadScheduledCampaigns();
     setScheduledDate(null);
 
     Alert.alert(
-      "Scheduled Everywhere",
-      `Campaign scheduled for ${platforms.join(", ")}.`
-    );
+  "Schedule Everywhere Complete",
+  `Scheduled: ${scheduledPlatforms.join(", ") || "None"}${
+    failedPlatforms.length
+      ? `\n\nSkipped/Failed: ${failedPlatforms.join(", ")}`
+      : ""
+  }`
+);
   } catch (err: any) {
     console.log(err);
     Alert.alert(
