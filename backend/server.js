@@ -832,6 +832,7 @@ app.get("/analytics", async (req, res) => {
       freeMonthsEarned: profile?.free_months || 0,
       subscriptionTier: profile?.subscription_tier || "free",
       monthlyCampaignCount: profile?.monthly_campaign_count || 0,
+      pinterestConnected: pinterestConnection.connected,
       upcoming,
     });
   } catch (err) {
