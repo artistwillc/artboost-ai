@@ -379,7 +379,7 @@ setImageUrl(campaign.imageUrl || "");
  
   const saveScheduledCampaign = async () => {
     try {
-      if (!profile?.is_pro) {
+      if (profile?.subscription_tier !== "pro") {
         Alert.alert("Pro Required", "Scheduling is a Pro feature.");
         return;
       }
@@ -451,7 +451,7 @@ setImageUrl(campaign.imageUrl || "");
 
   const scheduleEverywhere = async () => {
   try {
-    if (!profile?.is_pro) {
+    if (profile?.subscription_tier !== "pro") {
       Alert.alert("Pro Required", "Schedule Everywhere is a Pro feature.");
       return;
     }
@@ -736,7 +736,7 @@ console.log("Facebook Pages Response:", data);
  
   const createPinterestPin = async () => {
     try {
-      if (!profile?.is_pro) {
+      if (profile?.subscription_tier !== "pro") {
         Alert.alert("Pro Required", "Pinterest publishing is a Pro feature.");
         return;
       }
@@ -805,7 +805,7 @@ console.log("Facebook Pages Response:", data);
 
 const createFacebookPost = async () => {
   try {
-    if (!profile?.is_pro) {
+    if (profile?.subscription_tier !== "pro") {
       Alert.alert("Pro Required", "Facebook publishing is a Pro feature.");
       return;
     }
@@ -864,7 +864,7 @@ if (!response.ok || data.error) {
 
 const createInstagramPost = async () => {
   try {
-    if (!profile?.is_pro) {
+    if (profile?.subscription_tier !== "pro") {
       Alert.alert(
         "Pro Required",
         "Instagram publishing is a Pro feature."
@@ -930,7 +930,7 @@ ${hashtags}`,
 
 const createXPost = async () => {
   try {
-    if (!profile?.is_pro) {
+    if (profile?.subscription_tier !== "pro") {
       Alert.alert("Pro Required", "X publishing is a Pro feature.");
       return;
     }
@@ -993,7 +993,7 @@ const message = [
 
 const postEverywhere = async () => {
   try {
-    if (!profile?.is_pro) {
+    if (profile?.subscription_tier !== "pro") {
       Alert.alert("Pro Required", "Post Everywhere is a Pro feature.");
       return;
     }
@@ -1115,7 +1115,7 @@ const postEverywhere = async () => {
 
 const generateVariations = async () => {
     try {
-      if (!profile?.is_pro) {
+      if (profile?.subscription_tier !== "pro") {
         Alert.alert("Pro Required", "AI variations are a Pro feature.");
         return;
       }
@@ -1174,7 +1174,7 @@ const generateVariations = async () => {
   };
  
   const simulateProFeature = (feature: string) => {
-    if (!profile?.is_pro) {
+    if (profile?.subscription_tier !== "pro") {
       Alert.alert("Pro Required", `${feature} is a Pro feature.`);
       return;
     }
@@ -1334,9 +1334,9 @@ const applyReferralCode = async () => {
             : "You are not signed in. Log in on the main screen before upgrading."}
         </Text>
  
-        <View style={profile?.is_pro ? styles.proActiveBadge : styles.freeBadge}>
+        <View style={profile?.subscription_tier === "pro" ? styles.proActiveBadge : styles.freeBadge}>
           <Text style={styles.badgeText}>
-            {profile?.is_pro ? "PRO ACTIVE" : "FREE ACCOUNT"}
+            {profile?.subscription_tier === "pro" ? "PRO ACTIVE" : "FREE ACCOUNT"}
           </Text>
         </View>
  
@@ -1368,7 +1368,7 @@ const applyReferralCode = async () => {
 
 </Pressable>
  
-        {profile?.is_pro && (
+        {profile?.subscription_tier === "pro" && (
           <Pressable
             style={styles.billingButton}
             onPress={openBillingPortal}
@@ -1443,7 +1443,7 @@ const applyReferralCode = async () => {
   )}
 </View>
  
-      {!profile?.is_pro && (
+      {profile?.subscription_tier !== "pro" && (
         <View style={styles.card}>
           <Text style={styles.sectionHeader}>Upgrade to ArtBoost AI Pro</Text>
  
@@ -2975,3 +2975,4 @@ metricLabel: {
   marginTop: 2,
 },
 });
+
