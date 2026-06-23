@@ -237,15 +237,33 @@ const applyRepostPreset = (
  
       const data = await response.json();
  
-      if (!response.ok || !data.url) {
-        Alert.alert(
-          "Checkout Error",
-          data.error || "Unable to start Stripe checkout."
-        );
-        return;
-      }
- 
-      await Linking.openURL(data.url);
+      if (!response.ok) {
+  Alert.alert(
+    "Checkout Error",
+    data.error || "Unable to start Stripe checkout."
+  );
+  return;
+}
+
+if (data.usedFreeMonth) {
+  Alert.alert(
+    "Free Month Activated",
+    "Your referral reward was used to activate ArtBoost AI Pro for 30 days."
+  );
+
+  await loadProfile(session.user.id);
+  return;
+}
+
+if (!data.url) {
+  Alert.alert(
+    "Checkout Error",
+    "No Stripe checkout URL was returned."
+  );
+  return;
+}
+
+await Linking.openURL(data.url);
     } catch (err: any) {
       console.log(err);
       Alert.alert("Checkout Error", err.message || "Failed to open checkout.");
