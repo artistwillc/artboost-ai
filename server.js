@@ -98,7 +98,7 @@ async function createNotification({
     console.log("Notification error:", err.message);
   }
 }
-
+ 
 async function checkCampaignLimit(userId, platform) {
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -107,15 +107,15 @@ async function checkCampaignLimit(userId, platform) {
     )
     .eq("id", userId)
     .single();
-
+ 
   if (error || !profile) {
     throw new Error("Unable to verify subscription.");
   }
-
+ 
   const tier = profile.subscription_tier || "free";
-
+ 
   if (tier === "free") {
-
+ 
     // Free users only get Pinterest
     if (String(platform).toLowerCase() !== "pinterest") {
       return {
@@ -123,18 +123,18 @@ async function checkCampaignLimit(userId, platform) {
         reason: "Free users can only use Pinterest."
       };
     }
-
+ 
     // Monthly reset
     const now = new Date();
     const resetDate = profile.campaign_reset_date
       ? new Date(profile.campaign_reset_date)
       : null;
-
+ 
     if (!resetDate || now >= resetDate) {
-
+ 
       const nextReset = new Date();
       nextReset.setMonth(nextReset.getMonth() + 1);
-
+ 
       await supabase
         .from("profiles")
         .update({
@@ -142,10 +142,10 @@ async function checkCampaignLimit(userId, platform) {
           campaign_reset_date: nextReset.toISOString()
         })
         .eq("id", userId);
-
+ 
       profile.monthly_campaign_count = 0;
     }
-
+ 
     if ((profile.monthly_campaign_count || 0) >= 5) {
       return {
         allowed: false,
@@ -153,7 +153,7 @@ async function checkCampaignLimit(userId, platform) {
       };
     }
   }
-
+ 
   return {
     allowed: true
   };
@@ -1067,7 +1067,7 @@ app.post("/create-checkout-session", async (req, res) => {
         userId,
       },
     });
-
+ 
     res.json({
       success: true,
       url: session.url,
@@ -1108,37 +1108,37 @@ app.post("/sync-subscription", async (req, res) => {
     });
   }
 });
-
+ 
 app.post("/apply-referral", async (req, res) => {
   try {
     const { userId, referralCode } = req.body;
-
+ 
     if (!userId || !referralCode) {
       return res.status(400).json({
         error: "Missing userId or referral code.",
       });
     }
-
+ 
     const cleanCode = String(referralCode).trim().toUpperCase();
-
+ 
     const { data: userProfile, error: userError } = await supabase
       .from("profiles")
       .select("id, referral_code, referral_used")
       .eq("id", userId)
       .single();
-
+ 
     if (userError || !userProfile) {
       return res.status(404).json({
         error: "User profile not found.",
       });
     }
-
+ 
     if (userProfile.referral_used) {
       return res.status(400).json({
         error: "A referral code has already been used on this account.",
       });
     }
-
+ 
     if (
       userProfile.referral_code &&
       userProfile.referral_code.toUpperCase() === cleanCode
@@ -1147,19 +1147,19 @@ app.post("/apply-referral", async (req, res) => {
         error: "You cannot use your own referral code.",
       });
     }
-
+ 
     const { data: referrerProfile, error: referrerError } = await supabase
       .from("profiles")
       .select("id, referral_code, referral_count, free_months")
       .eq("referral_code", cleanCode)
       .single();
-
+ 
     if (referrerError || !referrerProfile) {
       return res.status(404).json({
         error: "Referral code not found.",
       });
     }
-
+ 
     await supabase
       .from("profiles")
       .update({
@@ -1169,7 +1169,7 @@ app.post("/apply-referral", async (req, res) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
-
+ 
     await supabase
       .from("profiles")
       .update({
@@ -1178,28 +1178,28 @@ app.post("/apply-referral", async (req, res) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", referrerProfile.id);
-
+ 
     await createNotification({
       userId,
       title: "Referral Applied",
       message: "Your referral code was applied successfully. You earned 1 free month.",
       type: "success",
     });
-
+ 
     await createNotification({
       userId: referrerProfile.id,
       title: "Referral Reward Earned",
       message: "Someone used your referral code. You earned 1 free month.",
       type: "success",
     });
-
+ 
     res.json({
       success: true,
       message: "Referral applied successfully.",
     });
   } catch (err) {
     console.error("Apply referral error:", err);
-
+ 
     res.status(500).json({
       error: "Failed to apply referral code.",
       details: err.message,
@@ -2030,32 +2030,32 @@ app.get("/facebook/test", (req, res) => {
     hasToken: Boolean(facebookConnection.token),
   });
 });
-
+ 
 app.post("/disconnect-platform", async (req, res) => {
   try {
     const { platform } = req.body;
-
+ 
     if (!platform) {
       return res.status(400).json({
         success: false,
         error: "Missing platform.",
       });
     }
-
+ 
     const normalizedPlatform = String(platform).trim().toLowerCase();
-
+ 
     const { error } = await supabase
       .from("social_connections")
       .delete()
       .eq("platform", normalizedPlatform);
-
+ 
     if (error) {
       return res.status(500).json({
         success: false,
         error: error.message,
       });
     }
-
+ 
     if (normalizedPlatform === "facebook") {
       facebookConnection = {
         connected: false,
@@ -2064,7 +2064,7 @@ app.post("/disconnect-platform", async (req, res) => {
         connectedAt: null,
       };
     }
-
+ 
     if (normalizedPlatform === "pinterest") {
       pinterestConnection = {
         connected: false,
@@ -2075,14 +2075,14 @@ app.post("/disconnect-platform", async (req, res) => {
         connectedAt: null,
       };
     }
-
+ 
     res.json({
       success: true,
       platform: normalizedPlatform,
     });
   } catch (err) {
     console.error("Disconnect platform error:", err);
-
+ 
     res.status(500).json({
       success: false,
       error: err.message,
@@ -2344,7 +2344,7 @@ async function publishFacebookPost({
   }
  
   const message = `${title}
-
+ 
 ${description}
 
 ${cta || ""}
@@ -2570,10 +2570,10 @@ console.log("X MESSAGE:");
 console.log(message);
 
   console.log("X MESSAGE LENGTH:", message.length);
-
+ 
 console.log("X MESSAGE:");
 console.log(message);
-
+ 
   const response = await fetch(tweetRequestData.url, {
     method: "POST",
     headers: {
@@ -2753,7 +2753,7 @@ app.post("/schedule-campaign", async (req, res) => {
       .insert(insertPayload)
       .select()
       .single();
-
+ 
     if (error) {
       console.log("SCHEDULE INSERT FAILED:", {
         platform: normalizedPlatform,
@@ -2772,14 +2772,14 @@ app.post("/schedule-campaign", async (req, res) => {
         hint: error.hint,
       });
     }
-
+ 
     if (userId) {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("subscription_tier, monthly_campaign_count")
         .eq("id", userId)
         .single();
-
+ 
       if (!profileError && (profile?.subscription_tier || "free") === "free") {
         await supabase
           .from("profiles")
@@ -3823,53 +3823,53 @@ Final check:
     });
   }
 });
-
+ 
 app.post("/apply-referral", async (req, res) => {
   try {
     const { userId, referralCode } = req.body;
-
+ 
     if (!userId || !referralCode) {
       return res.status(400).json({
         error: "Missing userId or referral code."
       });
     }
-
+ 
     const { data: currentUser, error: currentError } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
-
+ 
     if (currentError || !currentUser) {
       return res.status(404).json({
         error: "User not found."
       });
     }
-
+ 
     if (currentUser.referral_used) {
       return res.status(400).json({
         error: "Referral already used."
       });
     }
-
+ 
     const { data: referrer, error: refError } = await supabase
       .from("profiles")
       .select("*")
       .eq("referral_code", referralCode.toUpperCase())
       .single();
-
+ 
     if (refError || !referrer) {
       return res.status(404).json({
         error: "Invalid referral code."
       });
     }
-
+ 
     if (referrer.id === userId) {
       return res.status(400).json({
         error: "You cannot refer yourself."
       });
     }
-
+ 
     await supabase
       .from("profiles")
       .update({
@@ -3877,7 +3877,7 @@ app.post("/apply-referral", async (req, res) => {
         referral_used: true
       })
       .eq("id", userId);
-
+ 
     await supabase
   .from("profiles")
   .update({
@@ -3885,11 +3885,11 @@ app.post("/apply-referral", async (req, res) => {
     referral_count: (referrer.referral_count || 0) + 1
   })
   .eq("id", referrer.id);
-
+ 
     res.json({
       success: true
     });
-
+ 
   } catch (err) {
     res.status(500).json({
       error: err.message
@@ -4015,4 +4015,4 @@ console.log(
 );
 
 });
-
+ 
