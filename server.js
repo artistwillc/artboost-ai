@@ -637,6 +637,7 @@ app.get("/support", (req, res) => {
         <h1>ArtBoost AI Support</h1>
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         <p>Email: support@artboostai.com</p>
 =======
         <p>Email: support@artboost-ai.com</p>
@@ -644,6 +645,9 @@ app.get("/support", (req, res) => {
 =======
         <p>Email: support@artboostai.com</p>
 >>>>>>> 298a814 (Update support email address format)
+=======
+        <p>Email: support@artboostai.com</p>
+>>>>>>> a6667da (Update support email address to new domain)
         <p>Typical response time: 1-2 business days.</p>
       </body>
     </html>
