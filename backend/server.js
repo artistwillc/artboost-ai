@@ -1171,13 +1171,16 @@ app.post("/apply-referral", async (req, res) => {
       .eq("id", userId);
  
     await supabase
-      .from("profiles")
-      .update({
-        referral_count: (referrerProfile.referral_count || 0) + 1,
-        free_months: (referrerProfile.free_months || 0) + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", referrerProfile.id);
+  .from("profiles")
+  .update({
+    referral_count: (referrerProfile.referral_count || 0) + 1,
+    free_months: Math.min(
+      (referrerProfile.free_months || 0) + 1,
+      3
+    ),
+    updated_at: new Date().toISOString(),
+  })
+  .eq("id", referrerProfile.id);
  
     await createNotification({
       userId,
