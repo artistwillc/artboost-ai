@@ -487,7 +487,7 @@ app.get("/delete-user-data", (req, res) => {
  
   <p>
   Contact:
-  support@artboost-ai.com
+  support@artboostai.com
   </p>
  
   <ul>
