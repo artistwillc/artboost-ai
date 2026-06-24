@@ -397,11 +397,6 @@ setImageUrl(campaign.imageUrl || "");
  
   const saveScheduledCampaign = async () => {
     try {
-      if (profile?.subscription_tier !== "pro") {
-        Alert.alert("Pro Required", "Scheduling is a Pro feature.");
-        return;
-      }
- 
       if (!title || !description) {
         Alert.alert("Missing Content", "Generate or enter campaign content first.");
         return;
