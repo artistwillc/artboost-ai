@@ -1293,6 +1293,65 @@ async function loadFacebookConnection() {
  
   console.log("Facebook saved connection loaded: true");
 }
+
+async function savePinterestConnection(tokenData) {
+  const connectedAt = new Date().toISOString();
+
+  pinterestConnection = {
+    connected: true,
+    token: tokenData.access_token,
+    tokenType: tokenData.token_type || null,
+    expiresIn: tokenData.expires_in || null,
+    scope: tokenData.scope || null,
+    connectedAt,
+  };
+
+  const { error } = await supabase
+    .from("social_connections")
+    .upsert(
+      {
+        platform: "pinterest",
+        connected: true,
+        access_token: tokenData.access_token,
+        token_type: tokenData.token_type || null,
+        expires_in: tokenData.expires_in || null,
+        scope: tokenData.scope || null,
+        connected_at: connectedAt,
+        updated_at: connectedAt,
+      },
+      { onConflict: "platform" }
+    );
+
+  if (error) {
+    console.log("Pinterest token save failed:", error.message);
+  } else {
+    console.log("Pinterest token saved to Supabase");
+  }
+}
+
+async function loadPinterestConnection() {
+  const { data, error } = await supabase
+    .from("social_connections")
+    .select("*")
+    .eq("platform", "pinterest")
+    .maybeSingle();
+
+  if (error || !data?.access_token) {
+    console.log("No saved Pinterest connection found.");
+    return;
+  }
+
+  pinterestConnection = {
+    connected: true,
+    token: data.access_token,
+    tokenType: data.token_type || null,
+    expiresIn: data.expires_in || null,
+    scope: data.scope || null,
+    connectedAt: data.connected_at || null,
+  };
+
+  console.log("Pinterest saved connection loaded: true");
+}
  
 app.get("/auth/facebook", (req, res) => {
  
@@ -1923,14 +1982,7 @@ app.get("/auth/pinterest/callback", async (req, res) => {
       `);
     }
  
-    pinterestConnection = {
-      connected: true,
-      token: tokenData.access_token,
-      tokenType: tokenData.token_type,
-      expiresIn: tokenData.expires_in,
-      scope: tokenData.scope,
-      connectedAt: new Date().toISOString(),
-    };
+    await savePinterestConnection(tokenData);
  
     await createNotification({
       userId: null,
@@ -3589,12 +3641,18 @@ app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
  
-  await loadFacebookConnection();
- 
-  console.log(
-    "Facebook saved connection loaded:",
-    facebookConnection.connected
-  );
+await loadFacebookConnection();
+await loadPinterestConnection();
+
+console.log(
+  "Facebook saved connection loaded:",
+  facebookConnection.connected
+);
+
+console.log(
+  "Pinterest saved connection loaded:",
+  pinterestConnection.connected
+);
  
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
   console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
