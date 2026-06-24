@@ -637,7 +637,6 @@ app.get("/support", (req, res) => {
         <h1>ArtBoost AI Support</h1>
 <<<<<<< HEAD
 <<<<<<< HEAD
-<<<<<<< HEAD
         <p>Email: support@artboostai.com</p>
 =======
         <p>Email: support@artboost-ai.com</p>
@@ -645,9 +644,6 @@ app.get("/support", (req, res) => {
 =======
         <p>Email: support@artboostai.com</p>
 >>>>>>> 298a814 (Update support email address format)
-=======
-        <p>Email: support@artboostai.com</p>
->>>>>>> a6667da (Update support email address to new domain)
         <p>Typical response time: 1-2 business days.</p>
       </body>
     </html>
@@ -1471,12 +1467,13 @@ async function savePinterestConnection(tokenData) {
   const connectedAt = new Date().toISOString();
 
   pinterestConnection = {
-    connected: true,
-    token: tokenData.access_token,
-    tokenType: tokenData.token_type || null,
-    expiresIn: tokenData.expires_in || null,
-    connectedAt,
-  };
+  connected: true,
+  token: tokenData.access_token,
+  tokenType: tokenData.token_type || null,
+  expiresIn: tokenData.expires_in || null,
+  scope: tokenData.scope || null,
+  connectedAt,
+};
 
   const { error } = await supabase
     .from("social_connections")
@@ -1486,7 +1483,10 @@ async function savePinterestConnection(tokenData) {
         connected: true,
         access_token: tokenData.access_token,
         
+        token_type: tokenData.token_type || null,
         expires_in: tokenData.expires_in || null,
+        scope: tokenData.scope || null,
+
         connected_at: connectedAt,
         updated_at: connectedAt,
       },
@@ -1513,11 +1513,15 @@ async function loadPinterestConnection() {
   }
 
   pinterestConnection = {
-    connected: true,
-    token: data.access_token,
-    expiresIn: data.expires_in || null,
-    connectedAt: data.connected_at || null,
-  };
+  connected: true,
+  token: data.access_token,
+
+  tokenType: data.token_type || null,
+  expiresIn: data.expires_in || null,
+  scope: data.scope || null,
+
+  connectedAt: data.connected_at || null,
+};
 
   console.log("Pinterest saved connection loaded: true");
 }
