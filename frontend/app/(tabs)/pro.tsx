@@ -1423,8 +1423,12 @@ const applyReferralCode = async () => {
   <Text style={styles.sectionHeader}>Referral Rewards</Text>
 
   <Text style={styles.heroText}>
-    Share your referral code and earn free months when new users join ArtBoost AI.
+    Share your referral code and earn up to 3 free months when new users join ArtBoost AI.
   </Text>
+
+  <Text style={styles.heroText}>
+  Successful referrals earn 1 free month each, up to a maximum of 3 free months.
+</Text>
 
   <View style={styles.queueCard}>
     <Text style={styles.queueTitle}>Your Referral Code</Text>
