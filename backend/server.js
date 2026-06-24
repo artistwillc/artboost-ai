@@ -1312,7 +1312,7 @@ async function savePinterestConnection(tokenData) {
         platform: "pinterest",
         connected: true,
         access_token: tokenData.access_token,
-        token_type: tokenData.token_type || null,
+        
         expires_in: tokenData.expires_in || null,
         connected_at: connectedAt,
         updated_at: connectedAt,
@@ -1342,7 +1342,6 @@ async function loadPinterestConnection() {
   pinterestConnection = {
     connected: true,
     token: data.access_token,
-    tokenType: data.token_type || null,
     expiresIn: data.expires_in || null,
     connectedAt: data.connected_at || null,
   };
