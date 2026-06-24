@@ -70,6 +70,7 @@ const mapCampaignFromDb = (item) => ({
   nextRunAt: item.next_run_at,
   repeatUntil: item.repeat_until,
   
+
   posts: item.posts || 0,
   views: item.views || 0,
   clicks: item.clicks || 0,
@@ -4014,4 +4015,3 @@ console.log(
 );
 
 });
- 
