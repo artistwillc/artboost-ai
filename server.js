@@ -550,7 +550,7 @@ app.get("/privacy", (req, res) => {
         <p>ArtBoost AI collects account information necessary to provide social media automation and scheduling services.</p>
         <p>We do not sell personal information.</p>
         <p>Payment processing is handled securely through Stripe.</p>
-        <p>Questions may be directed to support@artboost-ai.com.</p>
+        <p>Questions may be directed to support@artboostai.com.</p>
       </body>
     </html>
   `);
@@ -575,7 +575,7 @@ app.get("/support", (req, res) => {
     <html>
       <body style="font-family:Arial;max-width:900px;margin:40px auto;padding:20px;">
         <h1>ArtBoost AI Support</h1>
-        <p>Email: support@artboost-ai.com</p>
+        <p>Email: support@artboostai.com</p>
         <p>Typical response time: 1-2 business days.</p>
       </body>
     </html>
@@ -603,7 +603,7 @@ app.get("/delete-user-data", (req, res) => {
  
   <p>
   Contact:
-  support@artboost-ai.com
+  support@artboostai.com
   </p>
  
   <ul>
