@@ -3521,8 +3521,11 @@ app.post("/apply-referral", async (req, res) => {
     await supabase
   .from("profiles")
   .update({
-    free_months: (referrer.free_months || 0) + 1,
-    referral_count: (referrer.referral_count || 0) + 1
+    free_months: Math.min(
+  (referrer.free_months || 0) + 1,
+  3
+),
+referral_count: (referrer.referral_count || 0) + 1,
   })
   .eq("id", referrer.id);
  
