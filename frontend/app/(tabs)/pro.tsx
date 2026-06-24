@@ -1347,12 +1347,37 @@ const applyReferralCode = async () => {
         <Text style={styles.sectionHeader}>Account Status</Text>
  
         <Text style={styles.heroText}>
-          {session?.user?.email
-            ? `Signed in as ${session.user.email}`
-            : "You are not signed in. Log in on the main screen before upgrading."}
-        </Text>
- 
-        <View style={profile?.subscription_tier === "pro" ? styles.proActiveBadge : styles.freeBadge}>
+  {session?.user?.email
+    ? `Signed in as ${session.user.email}`
+    : "You are not signed in. Log in on the main screen before upgrading."}
+</Text>
+
+<Text style={styles.heroText}>
+  Plan: {(profile?.subscription_tier || "free").toUpperCase()}
+</Text>
+
+<Text style={styles.heroText}>
+  Campaigns Used This Month: {profile?.monthly_campaign_count || 0}
+</Text>
+
+<Text style={styles.heroText}>
+  Campaigns Remaining: {
+    profile?.subscription_tier === "pro"
+      ? "Unlimited"
+      : `${Math.max(
+          0,
+          5 - (profile?.monthly_campaign_count || 0)
+        )} of 5`
+  }
+</Text>
+
+<View
+  style={
+    profile?.subscription_tier === "pro"
+      ? styles.proActiveBadge
+      : styles.freeBadge
+  }
+>
           <Text style={styles.badgeText}>
             {profile?.subscription_tier === "pro" ? "PRO ACTIVE" : "FREE ACCOUNT"}
           </Text>
