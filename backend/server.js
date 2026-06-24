@@ -633,21 +633,13 @@ app.get("/terms", (req, res) => {
 app.get("/support", (req, res) => {
   res.send(`
     <html>
-      <body style="font-family:Arial;max-width:900px;margin:40px auto;padding:20px;">
-        <h1>ArtBoost AI Support</h1>
-<<<<<<< HEAD
-<<<<<<< HEAD
-        <p>Email: support@artboostai.com</p>
-=======
-        <p>Email: support@artboost-ai.com</p>
->>>>>>> 0770182 (Add privacy policy, terms of service, and support routes)
-=======
-        <p>Email: support@artboostai.com</p>
->>>>>>> 298a814 (Update support email address format)
-        <p>Typical response time: 1-2 business days.</p>
-      </body>
-    </html>
-  `);
+  <body style="font-family:Arial;max-width:900px;margin:40px auto;padding:20px;">
+    <h1>ArtBoost AI Support</h1>
+    <p>Email: support@artboostai.com</p>
+    <p>Typical response time: 1-2 business days.</p>
+  </body>
+</html>
+`);
 });
  
 app.get("/delete-user-data", (req, res) => {
@@ -1467,13 +1459,12 @@ async function savePinterestConnection(tokenData) {
   const connectedAt = new Date().toISOString();
 
   pinterestConnection = {
-  connected: true,
-  token: tokenData.access_token,
-  tokenType: tokenData.token_type || null,
-  expiresIn: tokenData.expires_in || null,
-  scope: tokenData.scope || null,
-  connectedAt,
-};
+    connected: true,
+    token: tokenData.access_token,
+    tokenType: tokenData.token_type || null,
+    expiresIn: tokenData.expires_in || null,
+    connectedAt,
+  };
 
   const { error } = await supabase
     .from("social_connections")
@@ -1482,11 +1473,8 @@ async function savePinterestConnection(tokenData) {
         platform: "pinterest",
         connected: true,
         access_token: tokenData.access_token,
-        
         token_type: tokenData.token_type || null,
         expires_in: tokenData.expires_in || null,
-        scope: tokenData.scope || null,
-
         connected_at: connectedAt,
         updated_at: connectedAt,
       },
@@ -1513,15 +1501,12 @@ async function loadPinterestConnection() {
   }
 
   pinterestConnection = {
-  connected: true,
-  token: data.access_token,
-
-  tokenType: data.token_type || null,
-  expiresIn: data.expires_in || null,
-  scope: data.scope || null,
-
-  connectedAt: data.connected_at || null,
-};
+    connected: true,
+    token: data.access_token,
+    tokenType: data.token_type || null,
+    expiresIn: data.expires_in || null,
+    connectedAt: data.connected_at || null,
+  };
 
   console.log("Pinterest saved connection loaded: true");
 }
