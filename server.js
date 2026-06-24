@@ -3565,9 +3565,11 @@ app.listen(PORT, async () => {
     }`
   );
   console.log(
-    `Supabase configured: ${
-      process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-        ? "yes"
-        : "no"
-    }`
-  );
+  `Supabase configured: ${
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? "yes"
+      : "no"
+  }`
+);
+
+});
