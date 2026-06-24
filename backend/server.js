@@ -1302,7 +1302,6 @@ async function savePinterestConnection(tokenData) {
     token: tokenData.access_token,
     tokenType: tokenData.token_type || null,
     expiresIn: tokenData.expires_in || null,
-    scope: tokenData.scope || null,
     connectedAt,
   };
 
@@ -1315,7 +1314,6 @@ async function savePinterestConnection(tokenData) {
         access_token: tokenData.access_token,
         token_type: tokenData.token_type || null,
         expires_in: tokenData.expires_in || null,
-        scope: tokenData.scope || null,
         connected_at: connectedAt,
         updated_at: connectedAt,
       },
@@ -1346,7 +1344,6 @@ async function loadPinterestConnection() {
     token: data.access_token,
     tokenType: data.token_type || null,
     expiresIn: data.expires_in || null,
-    scope: data.scope || null,
     connectedAt: data.connected_at || null,
   };
 
