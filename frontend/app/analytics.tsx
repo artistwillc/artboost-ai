@@ -43,36 +43,71 @@ export default function AnalyticsScreen() {
   const [error, setError] = useState("");
 
   async function loadAnalytics() {
+  try {
+    setError("");
+
+    const response = await fetch(`${BACKEND_URL}/analytics`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to load analytics.");
+    }
+
+    let unread = 0;
+    let pinterestConnected = false;
+
     try {
-      setError("");
-
-      const response = await fetch(`${BACKEND_URL}/analytics`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to load analytics.");
-      }
-
       const notificationsRes = await fetch(`${BACKEND_URL}/notifications/all`);
       const notificationsData = await notificationsRes.json();
 
+      unread =
+        notificationsData.notifications?.filter((n: any) => n.unread)
+          .length || 0;
+    } catch {
+      unread = 0;
+    }
+
+    try {
       const pinterestRes = await fetch(`${BACKEND_URL}/pinterest/status`);
       const pinterestData = await pinterestRes.json();
 
-      setAnalytics({
-        ...data,
-        unread:
-          notificationsData.notifications?.filter((n: any) => n.unread)
-            .length || 0,
-        pinterestConnected: pinterestData.connected || false,
-      });
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      pinterestConnected = pinterestData.connected || false;
+    } catch {
+      pinterestConnected = false;
     }
+
+    setAnalytics({
+      total: data.total || 0,
+      totalCampaigns: data.totalCampaigns || 0,
+      scheduled: data.scheduled || 0,
+      published: data.published || 0,
+      failed: data.failed || 0,
+      saved: data.saved || 0,
+      ended: data.ended || 0,
+      active: data.active || 0,
+      paused: data.paused || 0,
+      totalPosts: data.totalPosts || 0,
+      successRate: data.successRate || 0,
+      averagePostsPerCampaign: data.averagePostsPerCampaign || 0,
+      pinterestPosts: data.pinterestPosts || 0,
+      facebookPosts: data.facebookPosts || 0,
+      instagramPosts: data.instagramPosts || 0,
+      xPosts: data.xPosts || 0,
+      referralCount: data.referralCount || 0,
+      freeMonthsEarned: data.freeMonthsEarned || 0,
+      subscriptionTier: data.subscriptionTier || "free",
+      monthlyCampaignCount: data.monthlyCampaignCount || 0,
+      unread,
+      pinterestConnected,
+      upcoming: data.upcoming || null,
+    });
+  } catch (err: any) {
+    setError(err.message || "Something went wrong.");
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
   }
+}
 
   useEffect(() => {
     loadAnalytics();
