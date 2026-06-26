@@ -2347,7 +2347,7 @@ async function publishFacebookPost({
   }
  
   const message = `${title}
- 
+
 ${description}
 
 ${cta || ""}
