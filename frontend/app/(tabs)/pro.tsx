@@ -2,7 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Clipboard from "expo-clipboard";
 import * as Linking from "expo-linking";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   Alert,
   Image,
@@ -325,53 +326,89 @@ await Linking.openURL(data.url);
 };
  
   const loadCurrentCampaign = async () => {
-    try {
-      const saved = await AsyncStorage.getItem("artboost_current_campaign");
-      if (!saved) return;
- 
-      const campaign = JSON.parse(saved);
- 
-      setTitle(campaign.pinterestTitle || campaign.title || "");
-      let finalDescription =
-  campaign.pinterestDescription || campaign.result || "";
+  try {
+    const saved =
+      (await AsyncStorage.getItem("artboost_current_campaign")) ||
+      (await AsyncStorage.getItem("generatedCampaign")) ||
+      (await AsyncStorage.getItem("currentCampaign"));
 
-let finalHashtags = campaign.hashtags || "";
-let finalCta = campaign.cta || "";
-
-if (campaign.platform === "Instagram" || selectedPlatform === "Instagram") {
-  finalDescription = finalDescription
-  .replace(/https?:\/\/\S+/gi, "")
-  .replace(/www\.\S+/gi, "")
-  .replace(/Shop here:?/gi, "")
-  .replace(/Shop now:?/gi, "")
-  .replace(/Grab yours now:?/gi, "")
-  .replace(/Grab yours here:?/gi, "")
-  .replace(/Check it out here:?/gi, "")
-  .replace(/Visit our store:?/gi, "")
-  .replace(/Visit:?/gi, "")
-  .trim();
-
-  finalCta = finalCta
-  .replace(/https?:\/\/\S+/gi, "")
-  .replace(/www\.\S+/gi, "")
-  .replace(/visit\s*/gi, "")
-  .replace(/click the link in bio/gi, "Tap the link in bio")
-  .replace(/\s{2,}/g, " ")
-  .trim();
-}
-
-finalHashtags = finalHashtags.replace(/\s+#/g, "\n#");
-
-setDescription(finalDescription);
-setHashtags(finalHashtags);
-setCta(finalCta);
-setProductLink(cleanUrl(campaign.productLink || ""));
-setPreviewImage(campaign.image || "");
-setImageUrl(campaign.imageUrl || "");
-    } catch (err) {
-      console.log("Failed loading campaign:", err);
+    if (!saved) {
+      console.log("No saved campaign found.");
+      return;
     }
-  };
+
+    const campaign = JSON.parse(saved);
+
+    const platform =
+      campaign.platform ||
+      campaign.selectedPlatform ||
+      selectedPlatform ||
+      "Pinterest";
+
+    setSelectedPlatform(platform);
+
+    const finalTitle =
+      campaign.instagramTitle ||
+      campaign.facebookTitle ||
+      campaign.pinterestTitle ||
+      campaign.xTitle ||
+      campaign.title ||
+      "";
+
+    let finalDescription =
+      campaign.instagramDescription ||
+      campaign.facebookDescription ||
+      campaign.pinterestDescription ||
+      campaign.xDescription ||
+      campaign.description ||
+      campaign.result ||
+      "";
+
+    let finalHashtags =
+      campaign.instagramHashtags ||
+      campaign.hashtags ||
+      "";
+
+    let finalCta =
+      campaign.instagramCta ||
+      campaign.cta ||
+      "";
+
+    if (platform === "Instagram") {
+      finalDescription = finalDescription
+        .replace(/https?:\/\/\S+/gi, "")
+        .replace(/www\.\S+/gi, "")
+        .replace(/Shop here:?/gi, "")
+        .replace(/Shop now:?/gi, "")
+        .replace(/Grab yours now:?/gi, "")
+        .replace(/Grab yours here:?/gi, "")
+        .replace(/Check it out here:?/gi, "")
+        .replace(/Visit our store:?/gi, "")
+        .replace(/Visit:?/gi, "")
+        .trim();
+
+      finalCta = finalCta
+        .replace(/https?:\/\/\S+/gi, "")
+        .replace(/www\.\S+/gi, "")
+        .replace(/visit\s*/gi, "")
+        .replace(/click the link in bio/gi, "Tap the link in bio")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+    }
+
+    finalHashtags = finalHashtags.replace(/\s+#/g, "\n#");
+
+    setTitle(finalTitle);
+    setDescription(finalDescription);
+    setHashtags(finalHashtags);
+    setCta(finalCta);
+    setProductLink(cleanUrl(campaign.productLink || ""));
+    setPreviewImage(campaign.image || campaign.previewImage || campaign.imageUrl || "");
+    setImageUrl(campaign.imageUrl || campaign.publicImageUrl || campaign.image || "");
+  } catch (err) {
+    console.log("Failed loading campaign:", err);
+  }
+};
  
   const loadScheduledCampaigns = async () => {
     try {
@@ -1281,6 +1318,12 @@ const applyReferralCode = async () => {
     setApplyingReferral(false);
   }
 };
+
+useFocusEffect(
+  useCallback(() => {
+    loadCurrentCampaign();
+  }, [])
+);
  
   useEffect(() => {
 
