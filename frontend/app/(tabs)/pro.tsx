@@ -348,31 +348,31 @@ await Linking.openURL(data.url);
     setSelectedPlatform(platform);
 
     const finalTitle =
-      campaign.instagramTitle ||
-      campaign.facebookTitle ||
-      campaign.pinterestTitle ||
-      campaign.xTitle ||
-      campaign.title ||
-      "";
+  campaign.title ||
+  campaign.instagramTitle ||
+  campaign.facebookTitle ||
+  campaign.pinterestTitle ||
+  campaign.xTitle ||
+  "";
 
     let finalDescription =
-      campaign.instagramDescription ||
-      campaign.facebookDescription ||
-      campaign.pinterestDescription ||
-      campaign.xDescription ||
-      campaign.description ||
-      campaign.result ||
-      "";
+  campaign.description ||
+  campaign.pinterestDescription ||
+  campaign.instagramDescription ||
+  campaign.facebookDescription ||
+  campaign.xDescription ||
+  campaign.result ||
+  "";
 
     let finalHashtags =
-      campaign.instagramHashtags ||
-      campaign.hashtags ||
-      "";
+  campaign.hashtags ||
+  campaign.instagramHashtags ||
+  "";
 
     let finalCta =
-      campaign.instagramCta ||
-      campaign.cta ||
-      "";
+  campaign.cta ||
+  campaign.instagramCta ||
+  "";
 
     if (platform === "Instagram") {
       finalDescription = finalDescription
