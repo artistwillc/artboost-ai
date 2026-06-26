@@ -1663,10 +1663,16 @@ app.post("/facebook/post", async (req, res) => {
   try {
  
     const {
-      message,
-      imageUrl,
-      pageId
-    } = req.body;
+  message,
+  imageUrl,
+  pageId,
+  productLink
+} = req.body;
+
+const finalMessage = [
+  message,
+  productLink
+].filter(Boolean).join("\n\n");
  
     if (!facebookConnection.token) {
  
@@ -1711,8 +1717,8 @@ app.post("/facebook/post", async (req, res) => {
       `https://graph.facebook.com/v23.0/${page.id}/feed`;
  
     let body = {
-      message,
-      access_token: page.access_token,
+      message: finalMessage,
+access_token: page.access_token,
     };
  
     if (imageUrl) {
@@ -1722,8 +1728,8 @@ app.post("/facebook/post", async (req, res) => {
  
       body = {
         url: imageUrl,
-        caption: message,
-        access_token: page.access_token,
+        caption: finalMessage,
+access_token: page.access_token,
       };
  
     }
