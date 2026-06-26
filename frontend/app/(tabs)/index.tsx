@@ -251,9 +251,10 @@ return {
       style: selectedStyle,
       title,
       pinterestTitle: title,
-      pinterestDescription: description,
-      hashtags,
-      cta,
+      description,
+pinterestDescription: description,
+hashtags,
+cta,
       createdAt: new Date().toLocaleString(),
     };
   };
