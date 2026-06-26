@@ -2091,6 +2091,8 @@ async function publishPinterestPin({
 async function publishFacebookPost({
   title,
   description,
+  hashtags,
+  cta,
   productLink,
   imageUrl,
   pageId,
@@ -2120,9 +2122,13 @@ async function publishFacebookPost({
   }
  
   const message = `${title}
- 
+
 ${description}
- 
+
+${cta || ""}
+
+${hashtags || ""}
+
 ${productLink || ""}`;
  
   const response = await fetch(
@@ -2778,12 +2784,14 @@ async function runScheduledCampaigns() {
  
       if (platform === "facebook") {
         publishData = await publishFacebookPost({
-          title: campaign.title,
-          description: campaign.description,
-          productLink: campaign.product_link,
-          imageUrl: campaign.image_url,
-          pageId: campaign.page_id,
-        });
+  title: campaign.title,
+  description: campaign.description,
+  hashtags: campaign.hashtags,
+  cta: campaign.cta,
+  productLink: campaign.product_link,
+  imageUrl: campaign.image_url,
+  pageId: campaign.page_id,
+});
       } else if (platform === "instagram") {
         console.log("Publishing Instagram campaign:", campaign.id);
         publishData = await publishInstagramPost({
