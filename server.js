@@ -2349,6 +2349,12 @@ if (imageUrl && !hasProductLink) {
 console.log("X MESSAGE:");
 console.log(message);
  
+
+  console.log("X MESSAGE LENGTH:", message.length);
+
+console.log("X MESSAGE:");
+console.log(message);
+
   const response = await fetch(tweetRequestData.url, {
     method: "POST",
     headers: {
