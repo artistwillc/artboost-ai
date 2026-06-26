@@ -896,6 +896,7 @@ ${hashtags}
 ${finalProductLink}`,
   imageUrl,
   pageId: selectedFacebookPage,
+  productLink: finalProductLink,
 }),
     });
 
