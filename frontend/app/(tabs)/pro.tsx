@@ -466,6 +466,8 @@ await Linking.openURL(data.url);
   userId: session?.user?.id || null,
   title,
   description,
+  hashtags,
+  cta,
   imageUrl,
   productLink,
   boardId: selectedPlatform === "Pinterest" ? selectedBoard : null,
