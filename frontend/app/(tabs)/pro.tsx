@@ -863,11 +863,21 @@ const createFacebookPost = async () => {
     }
 
     if (!imageUrl) {
-      Alert.alert("Missing Image URL", "Facebook requires a public image URL.");
-      return;
-    }
+  Alert.alert("Missing Image URL", "Facebook requires a public image URL.");
+  return;
+}
 
-    setPublishing(true);
+const finalProductLink = cleanUrl(productLink);
+
+if (finalProductLink && !finalProductLink.startsWith("http")) {
+  Alert.alert(
+    "Invalid Product Link",
+    "The product link must start with https:// or http://."
+  );
+  return;
+}
+
+setPublishing(true);
 
     const response = await fetch(`${BACKEND_URL}/facebook/post`, {
       method: "POST",
@@ -883,7 +893,7 @@ ${cta}
 
 ${hashtags}
 
-${productLink}`,
+${finalProductLink}`,
   imageUrl,
   pageId: selectedFacebookPage,
 }),
