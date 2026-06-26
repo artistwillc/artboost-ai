@@ -879,7 +879,9 @@ ${description}
 
 ${cta}
 
-${hashtags}`,
+${hashtags}
+
+${productLink}`,
   imageUrl,
   pageId: selectedFacebookPage,
 }),
