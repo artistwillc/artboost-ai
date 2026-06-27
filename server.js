@@ -159,6 +159,66 @@ async function checkCampaignLimit(userId, platform) {
   };
 }
  
+async function checkCampaignLimit(userId, platform) {
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select(
+      "subscription_tier, monthly_campaign_count, campaign_reset_date"
+    )
+    .eq("id", userId)
+    .single();
+ 
+  if (error || !profile) {
+    throw new Error("Unable to verify subscription.");
+  }
+ 
+  const tier = profile.subscription_tier || "free";
+ 
+  if (tier === "free") {
+ 
+    // Free users only get Pinterest
+    if (String(platform).toLowerCase() !== "pinterest") {
+      return {
+        allowed: false,
+        reason: "Free users can only use Pinterest."
+      };
+    }
+ 
+    // Monthly reset
+    const now = new Date();
+    const resetDate = profile.campaign_reset_date
+      ? new Date(profile.campaign_reset_date)
+      : null;
+ 
+    if (!resetDate || now >= resetDate) {
+ 
+      const nextReset = new Date();
+      nextReset.setMonth(nextReset.getMonth() + 1);
+ 
+      await supabase
+        .from("profiles")
+        .update({
+          monthly_campaign_count: 0,
+          campaign_reset_date: nextReset.toISOString()
+        })
+        .eq("id", userId);
+ 
+      profile.monthly_campaign_count = 0;
+    }
+ 
+    if ((profile.monthly_campaign_count || 0) >= 5) {
+      return {
+        allowed: false,
+        reason: "Free users are limited to 5 campaigns per month."
+      };
+    }
+  }
+ 
+  return {
+    allowed: true
+  };
+}
+ 
 async function updateProfileByUserIdOrEmail({ userId, email, updateData }) {
   if (userId) {
     const { data, error } = await supabase
@@ -550,10 +610,10 @@ app.get("/privacy", (req, res) => {
         <p>ArtBoost AI collects account information necessary to provide social media automation and scheduling services.</p>
         <p>We do not sell personal information.</p>
         <p>Payment processing is handled securely through Stripe.</p>
-        <p>Questions may be directed to support@artboostai.com.</p>
-      </body>
-    </html>
-  `);
+<p>Questions may be directed to support@artboostai.com.</p>
+</body>
+</html>
+`);
 });
 
 app.get("/terms", (req, res) => {
@@ -573,13 +633,13 @@ app.get("/terms", (req, res) => {
 app.get("/support", (req, res) => {
   res.send(`
     <html>
-      <body style="font-family:Arial;max-width:900px;margin:40px auto;padding:20px;">
-        <h1>ArtBoost AI Support</h1>
-        <p>Email: support@artboostai.com</p>
-        <p>Typical response time: 1-2 business days.</p>
-      </body>
-    </html>
-  `);
+  <body style="font-family:Arial;max-width:900px;margin:40px auto;padding:20px;">
+    <h1>ArtBoost AI Support</h1>
+    <p>Email: support@artboostai.com</p>
+    <p>Typical response time: 1-2 business days.</p>
+  </body>
+</html>
+`);
 });
  
 app.get("/delete-user-data", (req, res) => {
@@ -1150,6 +1210,107 @@ app.post("/apply-referral", async (req, res) => {
   }
 });
  
+app.post("/apply-referral", async (req, res) => {
+  try {
+    const { userId, referralCode } = req.body;
+ 
+    if (!userId || !referralCode) {
+      return res.status(400).json({
+        error: "Missing userId or referral code.",
+      });
+    }
+ 
+    const cleanCode = String(referralCode).trim().toUpperCase();
+ 
+    const { data: userProfile, error: userError } = await supabase
+      .from("profiles")
+      .select("id, referral_code, referral_used")
+      .eq("id", userId)
+      .single();
+ 
+    if (userError || !userProfile) {
+      return res.status(404).json({
+        error: "User profile not found.",
+      });
+    }
+ 
+    if (userProfile.referral_used) {
+      return res.status(400).json({
+        error: "A referral code has already been used on this account.",
+      });
+    }
+ 
+    if (
+      userProfile.referral_code &&
+      userProfile.referral_code.toUpperCase() === cleanCode
+    ) {
+      return res.status(400).json({
+        error: "You cannot use your own referral code.",
+      });
+    }
+ 
+    const { data: referrerProfile, error: referrerError } = await supabase
+      .from("profiles")
+      .select("id, referral_code, referral_count, free_months")
+      .eq("referral_code", cleanCode)
+      .single();
+ 
+    if (referrerError || !referrerProfile) {
+      return res.status(404).json({
+        error: "Referral code not found.",
+      });
+    }
+ 
+    await supabase
+      .from("profiles")
+      .update({
+        referred_by: cleanCode,
+        referral_used: true,
+        free_months: 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+ 
+    await supabase
+  .from("profiles")
+  .update({
+    referral_count: (referrerProfile.referral_count || 0) + 1,
+    free_months: Math.min(
+      (referrerProfile.free_months || 0) + 1,
+      3
+    ),
+    updated_at: new Date().toISOString(),
+  })
+  .eq("id", referrerProfile.id);
+ 
+    await createNotification({
+      userId,
+      title: "Referral Applied",
+      message: "Your referral code was applied successfully. You earned 1 free month.",
+      type: "success",
+    });
+ 
+    await createNotification({
+      userId: referrerProfile.id,
+      title: "Referral Reward Earned",
+      message: "Someone used your referral code. You earned 1 free month.",
+      type: "success",
+    });
+ 
+    res.json({
+      success: true,
+      message: "Referral applied successfully.",
+    });
+  } catch (err) {
+    console.error("Apply referral error:", err);
+ 
+    res.status(500).json({
+      error: "Failed to apply referral code.",
+      details: err.message,
+    });
+  }
+});
+ 
 app.post("/create-billing-portal", async (req, res) => {
   try {
     const { customerId, email, userId } = req.body;
@@ -1393,18 +1554,17 @@ postTestRouteAdded: true,
  
 app.post("/x/post", async (req, res) => {
   try {
-    const { title, description, productLink, imageUrl, message } = req.body;
- 
-    const finalTitle = title || "";
-    const finalDescription = description || message || "";
+ const { title, description, productLink, imageUrl, message } = req.body;
+ const finalTitle = title || "";
+ const finalDescription = description || message || "";
  
     if (!finalTitle && !finalDescription) {
-      return res.status(400).json({
-        error: "Missing X post title or description.",
-      });
+    return res.status(400).json({
+    error: "Missing X post title or description.",
+    });
     }
  
-    const result = await publishXPost({
+ const result = await publishXPost({
       title: finalTitle,
       description: finalDescription,
       productLink,
@@ -1933,6 +2093,65 @@ app.post("/disconnect-platform", async (req, res) => {
   }
 });
  
+app.post("/disconnect-platform", async (req, res) => {
+  try {
+    const { platform } = req.body;
+ 
+    if (!platform) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing platform.",
+      });
+    }
+ 
+    const normalizedPlatform = String(platform).trim().toLowerCase();
+ 
+    const { error } = await supabase
+      .from("social_connections")
+      .delete()
+      .eq("platform", normalizedPlatform);
+ 
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+ 
+    if (normalizedPlatform === "facebook") {
+      facebookConnection = {
+        connected: false,
+        token: null,
+        expiresIn: null,
+        connectedAt: null,
+      };
+    }
+ 
+    if (normalizedPlatform === "pinterest") {
+      pinterestConnection = {
+        connected: false,
+        token: null,
+        tokenType: null,
+        expiresIn: null,
+        scope: null,
+        connectedAt: null,
+      };
+    }
+ 
+    res.json({
+      success: true,
+      platform: normalizedPlatform,
+    });
+  } catch (err) {
+    console.error("Disconnect platform error:", err);
+ 
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+ 
 app.get("/x/credentials-check", (req, res) => {
   res.json({
     connected: true,
@@ -2281,8 +2500,7 @@ message +=
   };
  
   let mediaId = null;
- 
-  console.log("X PRODUCT LINK:", productLink);
+console.log("X PRODUCT LINK:", productLink);
 console.log("X HAS PRODUCT LINK:", Boolean(productLink));
 console.log("X HAS IMAGE URL:", Boolean(imageUrl));
 console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
@@ -2290,7 +2508,6 @@ console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
 if (imageUrl && !hasProductLink) {
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
- 
     const uploadRequestData = {
       url: "https://upload.twitter.com/1.1/media/upload.json",
       method: "POST",
@@ -2355,6 +2572,11 @@ console.log(message);
 console.log("X MESSAGE:");
 console.log(message);
 
+  console.log("X MESSAGE LENGTH:", message.length);
+ 
+console.log("X MESSAGE:");
+console.log(message);
+ 
   const response = await fetch(tweetRequestData.url, {
     method: "POST",
     headers: {
@@ -2553,6 +2775,35 @@ app.post("/schedule-campaign", async (req, res) => {
         hint: error.hint,
       });
     }
+ 
+    if (userId) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("subscription_tier, monthly_campaign_count")
+        .eq("id", userId)
+        .single();
+ 
+      if (!profileError && (profile?.subscription_tier || "free") === "free") {
+        await supabase
+          .from("profiles")
+          .update({
+            monthly_campaign_count:
+              (profile?.monthly_campaign_count || 0) + 1,
+          })
+          .eq("id", userId);
+      }
+    }
+
+  if ((profile?.subscription_tier || "free") === "free") {
+    await supabase
+      .from("profiles")
+      .update({
+        monthly_campaign_count:
+          (profile?.monthly_campaign_count || 0) + 1,
+      })
+      .eq("id", userId);
+  }
+}
  
     if (userId) {
       const { data: profile, error: profileError } = await supabase
@@ -3572,6 +3823,82 @@ Final check:
     res.status(500).json({
       error: "Failed to generate platform-specific content.",
       details: err.message,
+    });
+  }
+});
+ 
+app.post("/apply-referral", async (req, res) => {
+  try {
+    const { userId, referralCode } = req.body;
+ 
+    if (!userId || !referralCode) {
+      return res.status(400).json({
+        error: "Missing userId or referral code."
+      });
+    }
+ 
+    const { data: currentUser, error: currentError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+ 
+    if (currentError || !currentUser) {
+      return res.status(404).json({
+        error: "User not found."
+      });
+    }
+ 
+    if (currentUser.referral_used) {
+      return res.status(400).json({
+        error: "Referral already used."
+      });
+    }
+ 
+    const { data: referrer, error: refError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("referral_code", referralCode.toUpperCase())
+      .single();
+ 
+    if (refError || !referrer) {
+      return res.status(404).json({
+        error: "Invalid referral code."
+      });
+    }
+ 
+    if (referrer.id === userId) {
+      return res.status(400).json({
+        error: "You cannot refer yourself."
+      });
+    }
+ 
+    await supabase
+      .from("profiles")
+      .update({
+        referred_by: referralCode.toUpperCase(),
+        referral_used: true
+      })
+      .eq("id", userId);
+ 
+    await supabase
+  .from("profiles")
+  .update({
+    free_months: Math.min(
+  (referrer.free_months || 0) + 1,
+  3
+),
+referral_count: (referrer.referral_count || 0) + 1,
+  })
+  .eq("id", referrer.id);
+ 
+    res.json({
+      success: true
+    });
+ 
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
     });
   }
 });
