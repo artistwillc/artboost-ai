@@ -633,21 +633,13 @@ app.get("/terms", (req, res) => {
 app.get("/support", (req, res) => {
   res.send(`
     <html>
-      <body style="font-family:Arial;max-width:900px;margin:40px auto;padding:20px;">
-        <h1>ArtBoost AI Support</h1>
-<<<<<<< HEAD
-<<<<<<< HEAD
-        <p>Email: support@artboostai.com</p>
-=======
-        <p>Email: support@artboost-ai.com</p>
->>>>>>> 0770182 (Add privacy policy, terms of service, and support routes)
-=======
-        <p>Email: support@artboostai.com</p>
->>>>>>> 298a814 (Update support email address format)
-        <p>Typical response time: 1-2 business days.</p>
-      </body>
-    </html>
-  `);
+  <body style="font-family:Arial;max-width:900px;margin:40px auto;padding:20px;">
+    <h1>ArtBoost AI Support</h1>
+    <p>Email: support@artboostai.com</p>
+    <p>Typical response time: 1-2 business days.</p>
+  </body>
+</html>
+`);
 });
  
 app.get("/delete-user-data", (req, res) => {
