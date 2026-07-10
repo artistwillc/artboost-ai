@@ -29,7 +29,9 @@
           "merchantIdentifier": "merchant.com.artboostai",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-font",
+      "expo-sqlite"
     ],
     "platforms": [
       "ios",
