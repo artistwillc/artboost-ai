@@ -40,22 +40,23 @@ function CustomTabBar({ state, navigation }: any) {
   }
 
   const mainTabs = [
-    { name: "index", title: "Create", icon: "color-palette" },
-    { name: "schedule", title: "Schedule", icon: "calendar" },
-    { name: "connections", title: "Connect", icon: "link" },
-    { name: "pro", title: "Pro", icon: "diamond" },
-  ];
+  { name: "index", title: "Create", icon: "color-palette" },
+  { name: "products", title: "Products", icon: "cube" },
+  { name: "connections", title: "Connect", icon: "link" },
+  { name: "pro", title: "Pro", icon: "diamond" },
+];
 
-  const moreItems = [
-    { title: "Analytics", icon: "bar-chart", route: "/analytics" },
-    { title: "Saved Campaigns", icon: "bookmark", route: "/saved" },
-    { title: "Brand Kit", icon: "brush", route: "/brand" },
-    { title: "Campaign History", icon: "time", route: "/history" },
-    { title: "Notifications", icon: "notifications", route: "/notifications" },
-    { title: "Platform Status", icon: "radio", route: "/connections" },
-    { title: "Explore Tools", icon: "compass", route: "/explore" },
-    { title: "Settings", icon: "settings", route: "/pro" },
-  ];
+const moreItems = [
+  { title: "Schedule", icon: "calendar", route: "/schedule" },
+  { title: "Analytics", icon: "bar-chart", route: "/analytics" },
+  { title: "Saved Campaigns", icon: "bookmark", route: "/saved" },
+  { title: "Brand Kit", icon: "brush", route: "/brand" },
+  { title: "Campaign History", icon: "time", route: "/history" },
+  { title: "Notifications", icon: "notifications", route: "/notifications" },
+  { title: "Platform Status", icon: "radio", route: "/connections" },
+  { title: "Explore Tools", icon: "compass", route: "/explore" },
+  { title: "Settings", icon: "settings", route: "/pro" },
+];
 
   function goToTab(name: string) {
     const route = state.routes.find((item: any) => item.name === name);
@@ -186,12 +187,13 @@ export default function TabLayout() {
         headerShown: false,
       }}
     >
-      <Tabs.Screen name="index" />
-      <Tabs.Screen name="saved" />
-      <Tabs.Screen name="schedule" />
-      <Tabs.Screen name="connections" />
-      <Tabs.Screen name="brand" />
-      <Tabs.Screen name="pro" />
+<Tabs.Screen name="index" />
+<Tabs.Screen name="saved" />
+<Tabs.Screen name="schedule" />
+<Tabs.Screen name="products" />
+<Tabs.Screen name="connections" />
+<Tabs.Screen name="brand" />
+<Tabs.Screen name="pro" />
     </Tabs>
   );
 }
