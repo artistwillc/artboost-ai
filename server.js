@@ -4513,6 +4513,631 @@ app.delete("/api/v2/products/:id", async (req, res) => {
     });
   }
 });
+
+// =========================================================
+// ARTBOOST AI V2 - STORE CONNECTIONS API
+// =========================================================
+
+const validStorePlatforms = [
+  "shopify",
+  "gumroad",
+  "etsy",
+  "redbubble",
+  "woocommerce",
+  "printify",
+];
+
+const mapStoreConnectionFromDb = (item) => ({
+  id: item.id,
+  userId: item.user_id,
+  platform: item.platform,
+  storeName: item.store_name,
+  storeUrl: item.store_url,
+  externalStoreId: item.external_store_id,
+
+  // Tokens are intentionally never returned to the mobile app.
+  connected: item.connected,
+  syncEnabled: item.sync_enabled,
+  scopes: item.scopes || [],
+  metadata: item.metadata || {},
+
+  tokenExpiresAt: item.token_expires_at,
+  lastSyncedAt: item.last_synced_at,
+  lastSyncStatus: item.last_sync_status,
+  lastSyncError: item.last_sync_error,
+
+  createdAt: item.created_at,
+  updatedAt: item.updated_at,
+});
+
+function normalizeStorePlatform(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isValidStorePlatform(value) {
+  return validStorePlatforms.includes(normalizeStorePlatform(value));
+}
+
+// =========================================================
+// GET STORE CONNECTIONS
+// GET /api/v2/store-connections?userId=...
+// Optional filter: platform
+// =========================================================
+
+app.get("/api/v2/store-connections", async (req, res) => {
+  try {
+    const { userId, platform } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    let query = supabase
+      .from("store_connections")
+      .select(
+        `
+          id,
+          user_id,
+          platform,
+          store_name,
+          store_url,
+          external_store_id,
+          connected,
+          sync_enabled,
+          scopes,
+          metadata,
+          token_expires_at,
+          last_synced_at,
+          last_sync_status,
+          last_sync_error,
+          created_at,
+          updated_at
+        `
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (platform) {
+      const normalizedPlatform = normalizeStorePlatform(platform);
+
+      if (!isValidStorePlatform(normalizedPlatform)) {
+        return res.status(400).json({
+          success: false,
+          error: `Unsupported store platform: ${normalizedPlatform}`,
+        });
+      }
+
+      query = query.eq("platform", normalizedPlatform);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Store connections load failed:", error);
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load store connections.",
+        details: error.message,
+      });
+    }
+
+    res.json({
+      success: true,
+      count: data?.length || 0,
+      connections: (data || []).map(mapStoreConnectionFromDb),
+    });
+  } catch (err) {
+    console.error("Store connections request failed:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Store connections request failed.",
+      details: err.message,
+    });
+  }
+});
+
+// =========================================================
+// GET ONE STORE CONNECTION
+// GET /api/v2/store-connections/:id?userId=...
+// =========================================================
+
+app.get("/api/v2/store-connections/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("store_connections")
+      .select(
+        `
+          id,
+          user_id,
+          platform,
+          store_name,
+          store_url,
+          external_store_id,
+          connected,
+          sync_enabled,
+          scopes,
+          metadata,
+          token_expires_at,
+          last_synced_at,
+          last_sync_status,
+          last_sync_error,
+          created_at,
+          updated_at
+        `
+      )
+      .eq("id", id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load store connection.",
+        details: error.message,
+      });
+    }
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: "Store connection not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      connection: mapStoreConnectionFromDb(data),
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Store connection request failed.",
+      details: err.message,
+    });
+  }
+});
+
+// =========================================================
+// CREATE STORE CONNECTION
+// POST /api/v2/store-connections
+// =========================================================
+
+app.post("/api/v2/store-connections", async (req, res) => {
+  try {
+    const {
+      userId,
+      platform,
+      storeName,
+      storeUrl,
+      externalStoreId,
+      accessToken,
+      refreshToken,
+      tokenExpiresAt,
+      scopes,
+      metadata,
+      connected,
+      syncEnabled,
+    } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const normalizedPlatform = normalizeStorePlatform(platform);
+
+    if (!isValidStorePlatform(normalizedPlatform)) {
+      return res.status(400).json({
+        success: false,
+        error: `Unsupported store platform: ${normalizedPlatform || "missing"}`,
+      });
+    }
+
+    if (!storeName || !String(storeName).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Store name is required.",
+      });
+    }
+
+    if (!storeUrl || !String(storeUrl).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Store URL is required.",
+      });
+    }
+
+    const insertPayload = {
+      user_id: userId,
+      platform: normalizedPlatform,
+      store_name: String(storeName).trim(),
+      store_url: String(storeUrl).trim(),
+      external_store_id: externalStoreId || null,
+
+      access_token: accessToken || null,
+      refresh_token: refreshToken || null,
+      token_expires_at: tokenExpiresAt || null,
+
+      scopes: Array.isArray(scopes) ? scopes : [],
+      metadata:
+        metadata &&
+        typeof metadata === "object" &&
+        !Array.isArray(metadata)
+          ? metadata
+          : {},
+
+      connected:
+        typeof connected === "boolean"
+          ? connected
+          : Boolean(accessToken),
+
+      sync_enabled:
+        typeof syncEnabled === "boolean"
+          ? syncEnabled
+          : true,
+
+      last_sync_status: "not_synced",
+      last_sync_error: null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("store_connections")
+      .insert(insertPayload)
+      .select(
+        `
+          id,
+          user_id,
+          platform,
+          store_name,
+          store_url,
+          external_store_id,
+          connected,
+          sync_enabled,
+          scopes,
+          metadata,
+          token_expires_at,
+          last_synced_at,
+          last_sync_status,
+          last_sync_error,
+          created_at,
+          updated_at
+        `
+      )
+      .single();
+
+    if (error) {
+      console.error("Store connection insert failed:", error);
+
+      if (error.code === "23505") {
+        return res.status(409).json({
+          success: false,
+          error: "This store is already connected.",
+          details: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to create store connection.",
+        details: error.message,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      connection: mapStoreConnectionFromDb(data),
+    });
+  } catch (err) {
+    console.error("Store connection create failed:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Store connection create request failed.",
+      details: err.message,
+    });
+  }
+});
+
+// =========================================================
+// UPDATE STORE CONNECTION
+// PATCH /api/v2/store-connections/:id
+// =========================================================
+
+app.patch("/api/v2/store-connections/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      userId,
+      platform,
+      storeName,
+      storeUrl,
+      externalStoreId,
+      accessToken,
+      refreshToken,
+      tokenExpiresAt,
+      scopes,
+      metadata,
+      connected,
+      syncEnabled,
+      lastSyncedAt,
+      lastSyncStatus,
+      lastSyncError,
+    } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const updatePayload = {};
+
+    if (platform !== undefined) {
+      const normalizedPlatform = normalizeStorePlatform(platform);
+
+      if (!isValidStorePlatform(normalizedPlatform)) {
+        return res.status(400).json({
+          success: false,
+          error: `Unsupported store platform: ${normalizedPlatform}`,
+        });
+      }
+
+      updatePayload.platform = normalizedPlatform;
+    }
+
+    if (storeName !== undefined) {
+      if (!String(storeName).trim()) {
+        return res.status(400).json({
+          success: false,
+          error: "Store name cannot be empty.",
+        });
+      }
+
+      updatePayload.store_name = String(storeName).trim();
+    }
+
+    if (storeUrl !== undefined) {
+      if (!String(storeUrl).trim()) {
+        return res.status(400).json({
+          success: false,
+          error: "Store URL cannot be empty.",
+        });
+      }
+
+      updatePayload.store_url = String(storeUrl).trim();
+    }
+
+    if (externalStoreId !== undefined) {
+      updatePayload.external_store_id =
+        externalStoreId || null;
+    }
+
+    if (accessToken !== undefined) {
+      updatePayload.access_token = accessToken || null;
+    }
+
+    if (refreshToken !== undefined) {
+      updatePayload.refresh_token = refreshToken || null;
+    }
+
+    if (tokenExpiresAt !== undefined) {
+      updatePayload.token_expires_at =
+        tokenExpiresAt || null;
+    }
+
+    if (scopes !== undefined) {
+      if (!Array.isArray(scopes)) {
+        return res.status(400).json({
+          success: false,
+          error: "Scopes must be an array.",
+        });
+      }
+
+      updatePayload.scopes = scopes;
+    }
+
+    if (metadata !== undefined) {
+      if (
+        !metadata ||
+        typeof metadata !== "object" ||
+        Array.isArray(metadata)
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "Metadata must be an object.",
+        });
+      }
+
+      updatePayload.metadata = metadata;
+    }
+
+    if (connected !== undefined) {
+      if (typeof connected !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          error: "connected must be true or false.",
+        });
+      }
+
+      updatePayload.connected = connected;
+    }
+
+    if (syncEnabled !== undefined) {
+      if (typeof syncEnabled !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          error: "syncEnabled must be true or false.",
+        });
+      }
+
+      updatePayload.sync_enabled = syncEnabled;
+    }
+
+    if (lastSyncedAt !== undefined) {
+      updatePayload.last_synced_at =
+        lastSyncedAt || null;
+    }
+
+    if (lastSyncStatus !== undefined) {
+      updatePayload.last_sync_status =
+        lastSyncStatus || null;
+    }
+
+    if (lastSyncError !== undefined) {
+      updatePayload.last_sync_error =
+        lastSyncError || null;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No store connection changes were provided.",
+      });
+    }
+
+    updatePayload.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("store_connections")
+      .update(updatePayload)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select(
+        `
+          id,
+          user_id,
+          platform,
+          store_name,
+          store_url,
+          external_store_id,
+          connected,
+          sync_enabled,
+          scopes,
+          metadata,
+          token_expires_at,
+          last_synced_at,
+          last_sync_status,
+          last_sync_error,
+          created_at,
+          updated_at
+        `
+      )
+      .maybeSingle();
+
+    if (error) {
+      console.error("Store connection update failed:", error);
+
+      if (error.code === "23505") {
+        return res.status(409).json({
+          success: false,
+          error: "This store is already connected.",
+          details: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to update store connection.",
+        details: error.message,
+      });
+    }
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: "Store connection not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      connection: mapStoreConnectionFromDb(data),
+    });
+  } catch (err) {
+    console.error("Store connection update request failed:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Store connection update request failed.",
+      details: err.message,
+    });
+  }
+});
+
+// =========================================================
+// DELETE STORE CONNECTION
+// DELETE /api/v2/store-connections/:id?userId=...
+// =========================================================
+
+app.delete("/api/v2/store-connections/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("store_connections")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to delete store connection.",
+        details: error.message,
+      });
+    }
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: "Store connection not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      deletedConnectionId: data.id,
+    });
+  } catch (err) {
+    console.error("Store connection delete failed:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Store connection delete request failed.",
+      details: err.message,
+    });
+  }
+});
  
 app.listen(PORT, async () => {
  
