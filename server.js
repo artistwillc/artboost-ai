@@ -3800,6 +3800,719 @@ referral_count: (referrer.referral_count || 0) + 1,
     });
   }
 });
+
+// =========================================================
+// ARTBOOST AI V2 - PRODUCTS API
+// =========================================================
+
+const mapProductFromDb = (item) => ({
+  id: item.id,
+  userId: item.user_id,
+
+  storeType: item.store_type,
+  storeName: item.store_name,
+  storeConnectionId: item.store_connection_id,
+  externalProductId: item.external_product_id,
+  externalVariantId: item.external_variant_id,
+
+  title: item.title,
+  description: item.description,
+  imageUrl: item.image_url,
+  productUrl: item.product_url,
+  price: item.price,
+  currency: item.currency,
+
+  tags: item.tags || [],
+  categories: item.categories || [],
+  metadata: item.metadata || {},
+
+  status: item.status,
+  automationEnabled: item.automation_enabled,
+  priority: item.priority,
+
+  lastPostedAt: item.last_posted_at,
+  nextEligiblePostAt: item.next_eligible_post_at,
+  timesPosted: item.times_posted,
+
+  lastSyncedAt: item.last_synced_at,
+  sourceCreatedAt: item.source_created_at,
+  sourceUpdatedAt: item.source_updated_at,
+
+  createdAt: item.created_at,
+  updatedAt: item.updated_at,
+});
+
+const validProductStatuses = [
+  "active",
+  "inactive",
+  "draft",
+  "out_of_stock",
+  "excluded",
+  "archived",
+];
+
+// =========================================================
+// GET PRODUCTS
+// GET /api/v2/products?userId=...
+// Optional filters:
+// status, storeType, search, automationEnabled
+// =========================================================
+
+app.get("/api/v2/products", async (req, res) => {
+  try {
+    const {
+      userId,
+      status,
+      storeType,
+      search,
+      automationEnabled,
+    } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    let query = supabase
+      .from("products")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (status) {
+      query = query.eq("status", String(status).trim().toLowerCase());
+    }
+
+    if (storeType) {
+      query = query.eq(
+        "store_type",
+        String(storeType).trim().toLowerCase()
+      );
+    }
+
+    if (
+      automationEnabled === "true" ||
+      automationEnabled === "false"
+    ) {
+      query = query.eq(
+        "automation_enabled",
+        automationEnabled === "true"
+      );
+    }
+
+    if (search && String(search).trim()) {
+      const cleanSearch = String(search)
+        .trim()
+        .replace(/[%_,()]/g, " ");
+
+      query = query.or(
+        `title.ilike.%${cleanSearch}%,description.ilike.%${cleanSearch}%,store_name.ilike.%${cleanSearch}%`
+      );
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Products load failed:", error);
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load products.",
+        details: error.message,
+      });
+    }
+
+    res.json({
+      success: true,
+      count: data?.length || 0,
+      products: (data || []).map(mapProductFromDb),
+    });
+  } catch (err) {
+    console.error("Products request failed:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Products request failed.",
+      details: err.message,
+    });
+  }
+});
+
+// =========================================================
+// GET ONE PRODUCT
+// GET /api/v2/products/:id?userId=...
+// =========================================================
+
+app.get("/api/v2/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load product.",
+        details: error.message,
+      });
+    }
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: "Product not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      product: mapProductFromDb(data),
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Product request failed.",
+      details: err.message,
+    });
+  }
+});
+
+// =========================================================
+// CREATE PRODUCT
+// POST /api/v2/products
+// =========================================================
+
+app.post("/api/v2/products", async (req, res) => {
+  try {
+    const {
+      userId,
+
+      storeType,
+      storeName,
+      storeConnectionId,
+      externalProductId,
+      externalVariantId,
+
+      title,
+      description,
+      imageUrl,
+      productUrl,
+      price,
+      currency,
+
+      tags,
+      categories,
+      metadata,
+
+      status,
+      automationEnabled,
+      priority,
+
+      lastSyncedAt,
+      sourceCreatedAt,
+      sourceUpdatedAt,
+    } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Product title is required.",
+      });
+    }
+
+    if (!productUrl || !String(productUrl).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Product URL is required.",
+      });
+    }
+
+    const finalStatus = String(status || "active")
+      .trim()
+      .toLowerCase();
+
+    if (!validProductStatuses.includes(finalStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid product status: ${finalStatus}`,
+      });
+    }
+
+    const numericPrice =
+      price === null || price === undefined || price === ""
+        ? null
+        : Number(price);
+
+    if (
+      numericPrice !== null &&
+      (!Number.isFinite(numericPrice) || numericPrice < 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Product price must be a valid non-negative number.",
+      });
+    }
+
+    const insertPayload = {
+      user_id: userId,
+
+      store_type: String(storeType || "manual")
+        .trim()
+        .toLowerCase(),
+      store_name: storeName || null,
+      store_connection_id: storeConnectionId || null,
+      external_product_id: externalProductId || null,
+      external_variant_id: externalVariantId || null,
+
+      title: String(title).trim(),
+      description: description || null,
+      image_url: imageUrl || null,
+      product_url: String(productUrl).trim(),
+      price: numericPrice,
+      currency: String(currency || "USD").trim().toUpperCase(),
+
+      tags: Array.isArray(tags) ? tags : [],
+      categories: Array.isArray(categories) ? categories : [],
+      metadata:
+        metadata &&
+        typeof metadata === "object" &&
+        !Array.isArray(metadata)
+          ? metadata
+          : {},
+
+      status: finalStatus,
+      automation_enabled:
+        typeof automationEnabled === "boolean"
+          ? automationEnabled
+          : true,
+      priority:
+        Number.isInteger(Number(priority))
+          ? Number(priority)
+          : 0,
+
+      last_synced_at: lastSyncedAt || null,
+      source_created_at: sourceCreatedAt || null,
+      source_updated_at: sourceUpdatedAt || null,
+
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("products")
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Product insert failed:", error);
+
+      if (error.code === "23505") {
+        return res.status(409).json({
+          success: false,
+          error: "This product has already been imported.",
+          details: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to create product.",
+        details: error.message,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      product: mapProductFromDb(data),
+    });
+  } catch (err) {
+    console.error("Product create failed:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Product create request failed.",
+      details: err.message,
+    });
+  }
+});
+
+// =========================================================
+// UPDATE PRODUCT
+// PATCH /api/v2/products/:id
+// =========================================================
+
+app.patch("/api/v2/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      userId,
+
+      storeType,
+      storeName,
+      storeConnectionId,
+      externalProductId,
+      externalVariantId,
+
+      title,
+      description,
+      imageUrl,
+      productUrl,
+      price,
+      currency,
+
+      tags,
+      categories,
+      metadata,
+
+      status,
+      automationEnabled,
+      priority,
+
+      lastPostedAt,
+      nextEligiblePostAt,
+      timesPosted,
+
+      lastSyncedAt,
+      sourceCreatedAt,
+      sourceUpdatedAt,
+    } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const updatePayload = {};
+
+    if (storeType !== undefined) {
+      updatePayload.store_type = String(storeType)
+        .trim()
+        .toLowerCase();
+    }
+
+    if (storeName !== undefined) {
+      updatePayload.store_name = storeName || null;
+    }
+
+    if (storeConnectionId !== undefined) {
+      updatePayload.store_connection_id =
+        storeConnectionId || null;
+    }
+
+    if (externalProductId !== undefined) {
+      updatePayload.external_product_id =
+        externalProductId || null;
+    }
+
+    if (externalVariantId !== undefined) {
+      updatePayload.external_variant_id =
+        externalVariantId || null;
+    }
+
+    if (title !== undefined) {
+      if (!String(title).trim()) {
+        return res.status(400).json({
+          success: false,
+          error: "Product title cannot be empty.",
+        });
+      }
+
+      updatePayload.title = String(title).trim();
+    }
+
+    if (description !== undefined) {
+      updatePayload.description = description || null;
+    }
+
+    if (imageUrl !== undefined) {
+      updatePayload.image_url = imageUrl || null;
+    }
+
+    if (productUrl !== undefined) {
+      if (!String(productUrl).trim()) {
+        return res.status(400).json({
+          success: false,
+          error: "Product URL cannot be empty.",
+        });
+      }
+
+      updatePayload.product_url = String(productUrl).trim();
+    }
+
+    if (price !== undefined) {
+      if (price === null || price === "") {
+        updatePayload.price = null;
+      } else {
+        const numericPrice = Number(price);
+
+        if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+          return res.status(400).json({
+            success: false,
+            error:
+              "Product price must be a valid non-negative number.",
+          });
+        }
+
+        updatePayload.price = numericPrice;
+      }
+    }
+
+    if (currency !== undefined) {
+      updatePayload.currency = String(currency || "USD")
+        .trim()
+        .toUpperCase();
+    }
+
+    if (tags !== undefined) {
+      if (!Array.isArray(tags)) {
+        return res.status(400).json({
+          success: false,
+          error: "Product tags must be an array.",
+        });
+      }
+
+      updatePayload.tags = tags;
+    }
+
+    if (categories !== undefined) {
+      if (!Array.isArray(categories)) {
+        return res.status(400).json({
+          success: false,
+          error: "Product categories must be an array.",
+        });
+      }
+
+      updatePayload.categories = categories;
+    }
+
+    if (metadata !== undefined) {
+      if (
+        !metadata ||
+        typeof metadata !== "object" ||
+        Array.isArray(metadata)
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "Product metadata must be an object.",
+        });
+      }
+
+      updatePayload.metadata = metadata;
+    }
+
+    if (status !== undefined) {
+      const normalizedStatus = String(status)
+        .trim()
+        .toLowerCase();
+
+      if (!validProductStatuses.includes(normalizedStatus)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid product status: ${normalizedStatus}`,
+        });
+      }
+
+      updatePayload.status = normalizedStatus;
+    }
+
+    if (automationEnabled !== undefined) {
+      if (typeof automationEnabled !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          error: "automationEnabled must be true or false.",
+        });
+      }
+
+      updatePayload.automation_enabled = automationEnabled;
+    }
+
+    if (priority !== undefined) {
+      const numericPriority = Number(priority);
+
+      if (!Number.isInteger(numericPriority)) {
+        return res.status(400).json({
+          success: false,
+          error: "Product priority must be an integer.",
+        });
+      }
+
+      updatePayload.priority = numericPriority;
+    }
+
+    if (lastPostedAt !== undefined) {
+      updatePayload.last_posted_at = lastPostedAt || null;
+    }
+
+    if (nextEligiblePostAt !== undefined) {
+      updatePayload.next_eligible_post_at =
+        nextEligiblePostAt || null;
+    }
+
+    if (timesPosted !== undefined) {
+      const numericTimesPosted = Number(timesPosted);
+
+      if (
+        !Number.isInteger(numericTimesPosted) ||
+        numericTimesPosted < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "timesPosted must be a non-negative integer.",
+        });
+      }
+
+      updatePayload.times_posted = numericTimesPosted;
+    }
+
+    if (lastSyncedAt !== undefined) {
+      updatePayload.last_synced_at = lastSyncedAt || null;
+    }
+
+    if (sourceCreatedAt !== undefined) {
+      updatePayload.source_created_at =
+        sourceCreatedAt || null;
+    }
+
+    if (sourceUpdatedAt !== undefined) {
+      updatePayload.source_updated_at =
+        sourceUpdatedAt || null;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No product changes were provided.",
+      });
+    }
+
+    updatePayload.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("products")
+      .update(updatePayload)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("Product update failed:", error);
+
+      if (error.code === "23505") {
+        return res.status(409).json({
+          success: false,
+          error: "This product has already been imported.",
+          details: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to update product.",
+        details: error.message,
+      });
+    }
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: "Product not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      product: mapProductFromDb(data),
+    });
+  } catch (err) {
+    console.error("Product update request failed:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Product update request failed.",
+      details: err.message,
+    });
+  }
+});
+
+// =========================================================
+// DELETE PRODUCT
+// DELETE /api/v2/products/:id?userId=...
+// =========================================================
+
+app.delete("/api/v2/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to delete product.",
+        details: error.message,
+      });
+    }
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: "Product not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      deletedProductId: data.id,
+    });
+  } catch (err) {
+    console.error("Product delete request failed:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Product delete request failed.",
+      details: err.message,
+    });
+  }
+});
  
 app.listen(PORT, async () => {
  
