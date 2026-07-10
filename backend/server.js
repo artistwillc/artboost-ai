@@ -39,9 +39,11 @@ cloudinary.config({
 let pinterestConnection = {
   connected: false,
   token: null,
-  tokenType: null,
+  refreshToken: null,
   expiresIn: null,
-  scope: null,
+  expiresAt: null,
+  refreshTokenExpiresIn: null,
+  refreshTokenExpiresAt: null,
   connectedAt: null,
 };
  
@@ -107,115 +109,53 @@ async function checkCampaignLimit(userId, platform) {
     )
     .eq("id", userId)
     .single();
- 
+
   if (error || !profile) {
     throw new Error("Unable to verify subscription.");
   }
- 
+
   const tier = profile.subscription_tier || "free";
- 
+
   if (tier === "free") {
- 
     // Free users only get Pinterest
     if (String(platform).toLowerCase() !== "pinterest") {
       return {
         allowed: false,
-        reason: "Free users can only use Pinterest."
+        reason: "Free users can only use Pinterest.",
       };
     }
- 
+
     // Monthly reset
     const now = new Date();
     const resetDate = profile.campaign_reset_date
       ? new Date(profile.campaign_reset_date)
       : null;
- 
+
     if (!resetDate || now >= resetDate) {
- 
       const nextReset = new Date();
       nextReset.setMonth(nextReset.getMonth() + 1);
- 
+
       await supabase
         .from("profiles")
         .update({
           monthly_campaign_count: 0,
-          campaign_reset_date: nextReset.toISOString()
+          campaign_reset_date: nextReset.toISOString(),
         })
         .eq("id", userId);
- 
+
       profile.monthly_campaign_count = 0;
     }
- 
+
     if ((profile.monthly_campaign_count || 0) >= 5) {
       return {
         allowed: false,
-        reason: "Free users are limited to 5 campaigns per month."
+        reason: "Free users are limited to 5 campaigns per month.",
       };
     }
   }
- 
+
   return {
-    allowed: true
-  };
-}
- 
-async function checkCampaignLimit(userId, platform) {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select(
-      "subscription_tier, monthly_campaign_count, campaign_reset_date"
-    )
-    .eq("id", userId)
-    .single();
- 
-  if (error || !profile) {
-    throw new Error("Unable to verify subscription.");
-  }
- 
-  const tier = profile.subscription_tier || "free";
- 
-  if (tier === "free") {
- 
-    // Free users only get Pinterest
-    if (String(platform).toLowerCase() !== "pinterest") {
-      return {
-        allowed: false,
-        reason: "Free users can only use Pinterest."
-      };
-    }
- 
-    // Monthly reset
-    const now = new Date();
-    const resetDate = profile.campaign_reset_date
-      ? new Date(profile.campaign_reset_date)
-      : null;
- 
-    if (!resetDate || now >= resetDate) {
- 
-      const nextReset = new Date();
-      nextReset.setMonth(nextReset.getMonth() + 1);
- 
-      await supabase
-        .from("profiles")
-        .update({
-          monthly_campaign_count: 0,
-          campaign_reset_date: nextReset.toISOString()
-        })
-        .eq("id", userId);
- 
-      profile.monthly_campaign_count = 0;
-    }
- 
-    if ((profile.monthly_campaign_count || 0) >= 5) {
-      return {
-        allowed: false,
-        reason: "Free users are limited to 5 campaigns per month."
-      };
-    }
-  }
- 
-  return {
-    allowed: true
+    allowed: true,
   };
 }
  
@@ -1210,107 +1150,6 @@ app.post("/apply-referral", async (req, res) => {
   }
 });
  
-app.post("/apply-referral", async (req, res) => {
-  try {
-    const { userId, referralCode } = req.body;
- 
-    if (!userId || !referralCode) {
-      return res.status(400).json({
-        error: "Missing userId or referral code.",
-      });
-    }
- 
-    const cleanCode = String(referralCode).trim().toUpperCase();
- 
-    const { data: userProfile, error: userError } = await supabase
-      .from("profiles")
-      .select("id, referral_code, referral_used")
-      .eq("id", userId)
-      .single();
- 
-    if (userError || !userProfile) {
-      return res.status(404).json({
-        error: "User profile not found.",
-      });
-    }
- 
-    if (userProfile.referral_used) {
-      return res.status(400).json({
-        error: "A referral code has already been used on this account.",
-      });
-    }
- 
-    if (
-      userProfile.referral_code &&
-      userProfile.referral_code.toUpperCase() === cleanCode
-    ) {
-      return res.status(400).json({
-        error: "You cannot use your own referral code.",
-      });
-    }
- 
-    const { data: referrerProfile, error: referrerError } = await supabase
-      .from("profiles")
-      .select("id, referral_code, referral_count, free_months")
-      .eq("referral_code", cleanCode)
-      .single();
- 
-    if (referrerError || !referrerProfile) {
-      return res.status(404).json({
-        error: "Referral code not found.",
-      });
-    }
- 
-    await supabase
-      .from("profiles")
-      .update({
-        referred_by: cleanCode,
-        referral_used: true,
-        free_months: 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
- 
-    await supabase
-  .from("profiles")
-  .update({
-    referral_count: (referrerProfile.referral_count || 0) + 1,
-    free_months: Math.min(
-      (referrerProfile.free_months || 0) + 1,
-      3
-    ),
-    updated_at: new Date().toISOString(),
-  })
-  .eq("id", referrerProfile.id);
- 
-    await createNotification({
-      userId,
-      title: "Referral Applied",
-      message: "Your referral code was applied successfully. You earned 1 free month.",
-      type: "success",
-    });
- 
-    await createNotification({
-      userId: referrerProfile.id,
-      title: "Referral Reward Earned",
-      message: "Someone used your referral code. You earned 1 free month.",
-      type: "success",
-    });
- 
-    res.json({
-      success: true,
-      message: "Referral applied successfully.",
-    });
-  } catch (err) {
-    console.error("Apply referral error:", err);
- 
-    res.status(500).json({
-      error: "Failed to apply referral code.",
-      details: err.message,
-    });
-  }
-});
- 
 app.post("/create-billing-portal", async (req, res) => {
   try {
     const { customerId, email, userId } = req.body;
@@ -1456,46 +1295,111 @@ async function loadFacebookConnection() {
 }
 
 async function savePinterestConnection(tokenData) {
-  const connectedAt = new Date().toISOString();
+  if (!tokenData?.access_token) {
+    throw new Error("Pinterest did not return an access token.");
+  }
+
+  const connectedAt = new Date();
+  const connectedAtIso = connectedAt.toISOString();
+
+  const expiresIn = Number(tokenData.expires_in || 0);
+  const refreshTokenExpiresIn = Number(
+    tokenData.refresh_token_expires_in || 0
+  );
+
+  const expiresAt = expiresIn
+    ? new Date(
+        connectedAt.getTime() + expiresIn * 1000
+      ).toISOString()
+    : null;
+
+  const refreshTokenExpiresAt = refreshTokenExpiresIn
+    ? new Date(
+        connectedAt.getTime() +
+          refreshTokenExpiresIn * 1000
+      ).toISOString()
+    : null;
+
+  const connectionRecord = {
+    platform: "pinterest",
+    connected: true,
+    access_token: tokenData.access_token,
+    expires_in: expiresIn || null,
+    expires_at: expiresAt,
+    refresh_token_expires_in:
+      refreshTokenExpiresIn || null,
+    refresh_token_expires_at:
+      refreshTokenExpiresAt,
+    connected_at: connectedAtIso,
+    updated_at: connectedAtIso,
+  };
+
+  // Only update the refresh token when Pinterest returns one.
+  // This prevents an existing refresh token from being erased.
+  if (tokenData.refresh_token) {
+    connectionRecord.refresh_token =
+      tokenData.refresh_token;
+  }
+
+  const { data, error } = await supabase
+    .from("social_connections")
+    .upsert(connectionRecord, {
+      onConflict: "platform",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error(
+      "Pinterest token save failed:",
+      error.message
+    );
+    throw error;
+  }
 
   pinterestConnection = {
     connected: true,
-    token: tokenData.access_token,
-    tokenType: tokenData.token_type || null,
-    expiresIn: tokenData.expires_in || null,
-    connectedAt,
+    token: data.access_token,
+    refreshToken: data.refresh_token || null,
+    expiresIn: data.expires_in || null,
+    expiresAt: data.expires_at || null,
+    refreshTokenExpiresIn:
+      data.refresh_token_expires_in || null,
+    refreshTokenExpiresAt:
+      data.refresh_token_expires_at || null,
+    connectedAt:
+      data.connected_at || connectedAtIso,
   };
 
-  const { error } = await supabase
-    .from("social_connections")
-    .upsert(
-      {
-        platform: "pinterest",
-        connected: true,
-        access_token: tokenData.access_token,
-        
-        expires_in: tokenData.expires_in || null,
-        connected_at: connectedAt,
-        updated_at: connectedAt,
-      },
-      { onConflict: "platform" }
-    );
-
-  if (error) {
-    console.log("Pinterest token save failed:", error.message);
-  } else {
-    console.log("Pinterest token saved to Supabase");
-  }
+  console.log(
+    "Pinterest token and refresh data saved to Supabase"
+  );
 }
 
 async function loadPinterestConnection() {
   const { data, error } = await supabase
     .from("social_connections")
-    .select("*")
+    .select(
+      `
+        connected,
+        access_token,
+        refresh_token,
+        expires_in,
+        expires_at,
+        refresh_token_expires_in,
+        refresh_token_expires_at,
+        connected_at
+      `
+    )
     .eq("platform", "pinterest")
     .maybeSingle();
 
-  if (error || !data?.access_token) {
+  if (error) {
+    console.error("Pinterest connection load failed:", error.message);
+    return;
+  }
+
+  if (!data?.connected || !data?.access_token) {
     console.log("No saved Pinterest connection found.");
     return;
   }
@@ -1503,11 +1407,15 @@ async function loadPinterestConnection() {
   pinterestConnection = {
     connected: true,
     token: data.access_token,
+    refreshToken: data.refresh_token || null,
     expiresIn: data.expires_in || null,
+    expiresAt: data.expires_at || null,
+    refreshTokenExpiresIn: data.refresh_token_expires_in || null,
+    refreshTokenExpiresAt: data.refresh_token_expires_at || null,
     connectedAt: data.connected_at || null,
   };
 
-  console.log("Pinterest saved connection loaded: true");
+  console.log("Pinterest connection loaded from Supabase.");
 }
  
 app.get("/auth/facebook", (req, res) => {
@@ -2069,74 +1977,17 @@ app.post("/disconnect-platform", async (req, res) => {
     }
  
     if (normalizedPlatform === "pinterest") {
-      pinterestConnection = {
-        connected: false,
-        token: null,
-        tokenType: null,
-        expiresIn: null,
-        scope: null,
-        connectedAt: null,
-      };
-    }
- 
-    res.json({
-      success: true,
-      platform: normalizedPlatform,
-    });
-  } catch (err) {
-    console.error("Disconnect platform error:", err);
- 
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
-  }
-});
- 
-app.post("/disconnect-platform", async (req, res) => {
-  try {
-    const { platform } = req.body;
- 
-    if (!platform) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing platform.",
-      });
-    }
- 
-    const normalizedPlatform = String(platform).trim().toLowerCase();
- 
-    const { error } = await supabase
-      .from("social_connections")
-      .delete()
-      .eq("platform", normalizedPlatform);
- 
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-      });
-    }
- 
-    if (normalizedPlatform === "facebook") {
-      facebookConnection = {
-        connected: false,
-        token: null,
-        expiresIn: null,
-        connectedAt: null,
-      };
-    }
- 
-    if (normalizedPlatform === "pinterest") {
-      pinterestConnection = {
-        connected: false,
-        token: null,
-        tokenType: null,
-        expiresIn: null,
-        scope: null,
-        connectedAt: null,
-      };
-    }
+  pinterestConnection = {
+    connected: false,
+    token: null,
+    refreshToken: null,
+    expiresIn: null,
+    expiresAt: null,
+    refreshTokenExpiresIn: null,
+    refreshTokenExpiresAt: null,
+    connectedAt: null,
+  };
+}
  
     res.json({
       success: true,
@@ -2776,36 +2627,7 @@ app.post("/schedule-campaign", async (req, res) => {
       });
     }
  
-    if (userId) {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("subscription_tier, monthly_campaign_count")
-        .eq("id", userId)
-        .single();
- 
-      if (!profileError && (profile?.subscription_tier || "free") === "free") {
-        await supabase
-          .from("profiles")
-          .update({
-            monthly_campaign_count:
-              (profile?.monthly_campaign_count || 0) + 1,
-          })
-          .eq("id", userId);
-      }
-    }
-
-  if ((profile?.subscription_tier || "free") === "free") {
-    await supabase
-      .from("profiles")
-      .update({
-        monthly_campaign_count:
-          (profile?.monthly_campaign_count || 0) + 1,
-      })
-      .eq("id", userId);
-  }
-}
- 
-    if (userId) {
+       if (userId) {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("subscription_tier, monthly_campaign_count")
