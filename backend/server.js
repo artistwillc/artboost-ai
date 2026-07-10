@@ -30,7 +30,7 @@ const PINTEREST_CLIENT_SECRET = process.env.PINTEREST_CLIENT_SECRET;
 const PINTEREST_REDIRECT_URI =
   process.env.PINTEREST_REDIRECT_URI ||
   "https://artboost-ai.onrender.com/auth/pinterest/callback";
-  const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
+const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
 const SHOPIFY_SCOPES =
   process.env.SHOPIFY_SCOPES || "read_products";
@@ -2423,7 +2423,107 @@ app.get("/shopify/status", async (req, res) => {
   }
 });
  
-// PASTE THE NEW ROUTE HERE
+app.get("/shopify/products", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        error: "Missing userId.",
+      });
+    }
+
+    const { data: connection, error } = await supabase
+      .from("social_connections")
+      .select("shop_domain, access_token")
+      .eq("user_id", userId)
+      .eq("platform", "shopify")
+      .single();
+
+    if (error || !connection) {
+      return res.status(404).json({
+        error: "Shopify not connected.",
+      });
+    }
+
+    const query = `
+    {
+      products(first:50) {
+        edges {
+          node {
+            id
+            title
+            handle
+            description
+
+            featuredImage {
+              url
+            }
+
+            variants(first:1) {
+              edges {
+                node {
+                  price
+                  inventoryQuantity
+                }
+              }
+            }
+          }
+        }
+      }
+    }`;
+
+    const response = await fetch(
+      `https://${connection.shop_domain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token":
+            connection.access_token,
+        },
+        body: JSON.stringify({
+          query,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return res.status(500).json(result);
+    }
+
+    const products =
+      result.data.products.edges.map(({ node }) => ({
+        id: node.id,
+        title: node.title,
+        description: node.description,
+        handle: node.handle,
+        image:
+          node.featuredImage?.url || null,
+        price:
+          node.variants.edges[0]?.node.price || null,
+        inventory:
+          node.variants.edges[0]?.node
+            .inventoryQuantity || 0,
+        url: `https://${connection.shop_domain}/products/${node.handle}`,
+      }));
+
+    res.json({
+      success: true,
+      total: products.length,
+      products,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
 app.get("/facebook/test", (req, res) => {
   res.json({
     connected: facebookConnection.connected,
