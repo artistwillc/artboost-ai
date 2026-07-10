@@ -833,13 +833,25 @@ console.log("Facebook Pages Response:", data);
       const data = await response.json();
  
       if (!response.ok) {
-        console.log(data);
-        Alert.alert(
-          "Pinterest Approval Pending",
-          "Pinterest posting is ready, but your Pinterest Developer app is still pending production approval.\n\nUntil Pinterest approves Standard Access, live pin creation is blocked. Your campaign is saved and ready to post once approval is complete."
-        );
-        return;
-      }
+  console.log("Pinterest publish error:", data);
+
+  const errorMessage =
+  data?.details?.message ||
+  data?.details ||
+  data?.error?.details ||
+  data?.error?.message ||
+  data?.error ||
+  JSON.stringify(data, null, 2);
+
+  Alert.alert(
+    "Pinterest Publish Failed",
+    typeof errorMessage === "string"
+      ? errorMessage
+      : JSON.stringify(errorMessage, null, 2)
+  );
+
+  return;
+}
  
       Alert.alert(
         "Pinterest Pin Published",
