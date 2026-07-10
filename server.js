@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { v2 as cloudinary } from "cloudinary";
 import OAuth from "oauth-1.0a";
 import CryptoJS from "crypto-js";
+import crypto from "crypto";
  
 dotenv.config({ override: true });
  
@@ -29,6 +30,15 @@ const PINTEREST_CLIENT_SECRET = process.env.PINTEREST_CLIENT_SECRET;
 const PINTEREST_REDIRECT_URI =
   process.env.PINTEREST_REDIRECT_URI ||
   "https://artboost-ai.onrender.com/auth/pinterest/callback";
+  const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
+const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
+const SHOPIFY_SCOPES =
+  process.env.SHOPIFY_SCOPES || "read_products";
+const SHOPIFY_REDIRECT_URI =
+  process.env.SHOPIFY_REDIRECT_URI ||
+  "https://artboost-ai.onrender.com/auth/shopify/callback";
+const SHOPIFY_API_VERSION =
+  process.env.SHOPIFY_API_VERSION || "2026-07";
  
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -1928,6 +1938,486 @@ app.post("/instagram/post", async (req, res) => {
     console.error("Instagram post error:", err);
  
     res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
+// ================================
+// Shopify Store Integration
+// ================================
+
+function normalizeShopifyDomain(value) {
+  const rawValue = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "");
+
+  if (!rawValue) {
+    return null;
+  }
+
+  const shopDomain = rawValue.endsWith(".myshopify.com")
+    ? rawValue
+    : `${rawValue}.myshopify.com`;
+
+  const validShopPattern =
+    /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/;
+
+  if (!validShopPattern.test(shopDomain)) {
+    return null;
+  }
+
+  return shopDomain;
+}
+
+function createShopifyState(userId, shopDomain) {
+  const payload = {
+    userId,
+    shopDomain,
+    timestamp: Date.now(),
+    nonce: crypto.randomBytes(16).toString("hex"),
+  };
+
+  const encodedPayload = Buffer.from(
+    JSON.stringify(payload)
+  ).toString("base64url");
+
+  const signature = crypto
+    .createHmac("sha256", SHOPIFY_CLIENT_SECRET)
+    .update(encodedPayload)
+    .digest("base64url");
+
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyShopifyState(state) {
+  if (!state || !SHOPIFY_CLIENT_SECRET) {
+    return null;
+  }
+
+  const [encodedPayload, suppliedSignature] =
+    String(state).split(".");
+
+  if (!encodedPayload || !suppliedSignature) {
+    return null;
+  }
+
+  const expectedSignature = crypto
+    .createHmac("sha256", SHOPIFY_CLIENT_SECRET)
+    .update(encodedPayload)
+    .digest("base64url");
+
+  const suppliedBuffer = Buffer.from(suppliedSignature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+
+  if (suppliedBuffer.length !== expectedBuffer.length) {
+    return null;
+  }
+
+  if (
+    !crypto.timingSafeEqual(
+      suppliedBuffer,
+      expectedBuffer
+    )
+  ) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(
+      Buffer.from(encodedPayload, "base64url").toString("utf8")
+    );
+
+    const tenMinutes = 10 * 60 * 1000;
+
+    if (
+      !payload.userId ||
+      !payload.shopDomain ||
+      !payload.timestamp ||
+      Date.now() - payload.timestamp > tenMinutes
+    ) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function verifyShopifyCallbackHmac(query) {
+  const suppliedHmac = String(query.hmac || "");
+
+  if (!suppliedHmac || !SHOPIFY_CLIENT_SECRET) {
+    return false;
+  }
+
+  const message = Object.keys(query)
+    .filter(
+      (key) =>
+        key !== "hmac" &&
+        key !== "signature"
+    )
+    .sort()
+    .map((key) => {
+      const value = Array.isArray(query[key])
+        ? query[key].join(",")
+        : String(query[key]);
+
+      return `${key}=${value}`;
+    })
+    .join("&");
+
+  const calculatedHmac = crypto
+    .createHmac("sha256", SHOPIFY_CLIENT_SECRET)
+    .update(message)
+    .digest("hex");
+
+  const suppliedBuffer = Buffer.from(
+    suppliedHmac,
+    "utf8"
+  );
+
+  const calculatedBuffer = Buffer.from(
+    calculatedHmac,
+    "utf8"
+  );
+
+  if (suppliedBuffer.length !== calculatedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(
+    suppliedBuffer,
+    calculatedBuffer
+  );
+}
+
+async function saveShopifyConnection({
+  userId,
+  shopDomain,
+  accessToken,
+  scopes,
+}) {
+  const now = new Date().toISOString();
+
+  const connectionData = {
+    user_id: userId,
+    platform: "shopify",
+    connected: true,
+    access_token: accessToken,
+    shop_domain: shopDomain,
+    scopes: scopes || SHOPIFY_SCOPES,
+    connected_at: now,
+    updated_at: now,
+  };
+
+  const { data: existingConnection, error: findError } =
+    await supabase
+      .from("social_connections")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("platform", "shopify")
+      .maybeSingle();
+
+  if (findError) {
+    throw new Error(
+      `Unable to check Shopify connection: ${findError.message}`
+    );
+  }
+
+  if (existingConnection?.id) {
+    const { data, error } = await supabase
+      .from("social_connections")
+      .update(connectionData)
+      .eq("id", existingConnection.id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(
+        `Unable to update Shopify connection: ${error.message}`
+      );
+    }
+
+    return data;
+  }
+
+  const { data, error } = await supabase
+    .from("social_connections")
+    .insert(connectionData)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Unable to save Shopify connection: ${error.message}`
+    );
+  }
+
+  return data;
+}
+
+app.get("/auth/shopify", (req, res) => {
+  try {
+    const { shop, userId } = req.query;
+
+    if (
+      !SHOPIFY_CLIENT_ID ||
+      !SHOPIFY_CLIENT_SECRET
+    ) {
+      return res.status(500).send(
+        "Shopify is not configured on the server."
+      );
+    }
+
+    if (!userId) {
+      return res.status(400).send(
+        "Missing ArtBoost userId."
+      );
+    }
+
+    const shopDomain = normalizeShopifyDomain(shop);
+
+    if (!shopDomain) {
+      return res.status(400).send(
+        "Enter a valid Shopify store domain."
+      );
+    }
+
+    const state = createShopifyState(
+      String(userId),
+      shopDomain
+    );
+
+    const authorizationUrl = new URL(
+      `https://${shopDomain}/admin/oauth/authorize`
+    );
+
+    authorizationUrl.searchParams.set(
+      "client_id",
+      SHOPIFY_CLIENT_ID
+    );
+
+    authorizationUrl.searchParams.set(
+      "scope",
+      SHOPIFY_SCOPES
+    );
+
+    authorizationUrl.searchParams.set(
+      "redirect_uri",
+      SHOPIFY_REDIRECT_URI
+    );
+
+    authorizationUrl.searchParams.set(
+      "state",
+      state
+    );
+
+    res.redirect(authorizationUrl.toString());
+  } catch (err) {
+    console.error(
+      "Shopify authorization error:",
+      err
+    );
+
+    res.status(500).send(
+      "Unable to start Shopify connection."
+    );
+  }
+});
+
+app.get(
+  "/auth/shopify/callback",
+  async (req, res) => {
+    try {
+      const {
+        code,
+        shop,
+        state,
+      } = req.query;
+
+      if (!code || !shop || !state) {
+        return res.status(400).send(
+          "Missing Shopify callback information."
+        );
+      }
+
+      if (!verifyShopifyCallbackHmac(req.query)) {
+        return res.status(401).send(
+          "Invalid Shopify callback signature."
+        );
+      }
+
+      const statePayload =
+        verifyShopifyState(state);
+
+      if (!statePayload) {
+        return res.status(401).send(
+          "Invalid or expired Shopify OAuth state."
+        );
+      }
+
+      const shopDomain =
+        normalizeShopifyDomain(shop);
+
+      if (
+        !shopDomain ||
+        shopDomain !== statePayload.shopDomain
+      ) {
+        return res.status(400).send(
+          "Shopify store domain does not match."
+        );
+      }
+
+      const tokenResponse = await fetch(
+        `https://${shopDomain}/admin/oauth/access_token`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            client_id: SHOPIFY_CLIENT_ID,
+            client_secret:
+              SHOPIFY_CLIENT_SECRET,
+            code: String(code),
+          }),
+        }
+      );
+
+      const tokenData =
+        await tokenResponse.json();
+
+      if (
+        !tokenResponse.ok ||
+        !tokenData.access_token
+      ) {
+        console.error(
+          "Shopify token exchange failed:",
+          tokenData
+        );
+
+        return res.status(400).send(`
+          <html>
+            <body style="font-family:Arial;padding:40px;">
+              <h1>Shopify Connection Failed</h1>
+              <p>The Shopify access token could not be created.</p>
+            </body>
+          </html>
+        `);
+      }
+
+      await saveShopifyConnection({
+        userId: statePayload.userId,
+        shopDomain,
+        accessToken:
+          tokenData.access_token,
+        scopes:
+          tokenData.scope || SHOPIFY_SCOPES,
+      });
+
+      await createNotification({
+        userId: statePayload.userId,
+        title: "Shopify Connected",
+        message:
+          "Your Shopify store was connected successfully.",
+        type: "success",
+      });
+
+      console.log(
+        "Shopify connected successfully:",
+        {
+          userId: statePayload.userId,
+          shopDomain,
+        }
+      );
+
+      res.send(`
+        <html>
+          <body style="
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+            text-align:center;
+          ">
+            <h1>Shopify Connected</h1>
+            <p>
+              ${shopDomain} is now connected to ArtBoost AI.
+            </p>
+            <p>
+              You can close this page and return to the app.
+            </p>
+          </body>
+        </html>
+      `);
+    } catch (err) {
+      console.error(
+        "Shopify callback error:",
+        err
+      );
+
+      res.status(500).send(`
+        <html>
+          <body style="font-family:Arial;padding:40px;">
+            <h1>Shopify Connection Error</h1>
+            <p>${err.message}</p>
+          </body>
+        </html>
+      `);
+    }
+  }
+);
+
+app.get("/shopify/status", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        connected: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("social_connections")
+      .select(
+        "connected, shop_domain, scopes, connected_at"
+      )
+      .eq("user_id", userId)
+      .eq("platform", "shopify")
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({
+        connected: false,
+        error: error.message,
+      });
+    }
+
+    res.json({
+      configured: Boolean(
+        SHOPIFY_CLIENT_ID &&
+          SHOPIFY_CLIENT_SECRET
+      ),
+      connected: Boolean(
+        data?.connected &&
+          data?.shop_domain
+      ),
+      shopDomain:
+        data?.shop_domain || null,
+      scopes: data?.scopes || null,
+      connectedAt:
+        data?.connected_at || null,
+    });
+  } catch (err) {
+    res.status(500).json({
+      connected: false,
       error: err.message,
     });
   }
