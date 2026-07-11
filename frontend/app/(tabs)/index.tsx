@@ -345,7 +345,7 @@ const createFacebookPost = async () => {
 };
  
   const postNow = async () => {
-    if (!profile?.subscription_tier === "pro") {
+    if (String(profile?.subscription_tier).toLowerCase() !== "pro") {
       Alert.alert("Pro Required", "Posting directly to platforms is a Pro feature.");
       return;
     }
@@ -431,7 +431,7 @@ const createFacebookPost = async () => {
   };
  
   const scheduleRepost = async () => {
-    if (!profile?.subscription_tier === "pro") {
+    if (String(profile?.subscription_tier).toLowerCase() !== "pro") {
       Alert.alert("Pro Required", "Scheduled reposting is a Pro feature.");
       return;
     }
