@@ -2429,97 +2429,212 @@ app.get("/shopify/products", async (req, res) => {
 
     if (!userId) {
       return res.status(400).json({
+        success: false,
         error: "Missing userId.",
       });
     }
 
-    const { data: connection, error } = await supabase
-      .from("social_connections")
-      .select("shop_domain, access_token")
-      .eq("user_id", userId)
-      .eq("platform", "shopify")
-      .single();
+    // Load this user's Shopify connection
+    const { data: connection, error: connectionError } =
+      await supabase
+        .from("social_connections")
+        .select("id, shop_domain, access_token, connected")
+        .eq("user_id", userId)
+        .eq("platform", "shopify")
+        .maybeSingle();
 
-    if (error || !connection) {
+    if (
+      connectionError ||
+      !connection ||
+      !connection.connected ||
+      !connection.shop_domain ||
+      !connection.access_token
+    ) {
       return res.status(404).json({
-        error: "Shopify not connected.",
+        success: false,
+        error: "Shopify is not connected.",
+        details: connectionError?.message || null,
       });
     }
 
     const query = `
-    {
-      products(first:50) {
-        edges {
-          node {
-            id
-            title
-            handle
-            description
+      {
+        shop {
+          currencyCode
+        }
 
-            featuredImage {
-              url
-            }
+        products(first: 50) {
+          edges {
+            node {
+              id
+              title
+              handle
+              description
+              status
+              productType
+              tags
+              createdAt
+              updatedAt
 
-            variants(first:1) {
-              edges {
-                node {
-                  price
-                  inventoryQuantity
+              featuredImage {
+                url
+              }
+
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                    price
+                    inventoryQuantity
+                  }
                 }
               }
             }
           }
         }
       }
-    }`;
+    `;
 
-    const response = await fetch(
+    const shopifyResponse = await fetch(
       `https://${connection.shop_domain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Access-Token":
-            connection.access_token,
+          "X-Shopify-Access-Token": connection.access_token,
         },
-        body: JSON.stringify({
-          query,
-        }),
+        body: JSON.stringify({ query }),
       }
     );
 
-    const result = await response.json();
+    const shopifyResult = await shopifyResponse.json();
 
-    if (!response.ok) {
-      return res.status(500).json(result);
+    if (!shopifyResponse.ok) {
+      console.error(
+        "Shopify products request failed:",
+        shopifyResult
+      );
+
+      return res.status(shopifyResponse.status).json({
+        success: false,
+        error: "Failed to retrieve Shopify products.",
+        details: shopifyResult,
+      });
     }
 
-    const products =
-      result.data.products.edges.map(({ node }) => ({
-        id: node.id,
-        title: node.title,
-        description: node.description,
-        handle: node.handle,
-        image:
-          node.featuredImage?.url || null,
-        price:
-          node.variants.edges[0]?.node.price || null,
-        inventory:
-          node.variants.edges[0]?.node
-            .inventoryQuantity || 0,
-        url: `https://${connection.shop_domain}/products/${node.handle}`,
-      }));
+    if (shopifyResult.errors?.length) {
+      console.error(
+        "Shopify GraphQL errors:",
+        shopifyResult.errors
+      );
+
+      return res.status(400).json({
+        success: false,
+        error: "Shopify returned a GraphQL error.",
+        details: shopifyResult.errors,
+      });
+    }
+
+    const currency =
+      shopifyResult.data?.shop?.currencyCode || null;
+
+    const productEdges =
+      shopifyResult.data?.products?.edges || [];
+
+    const syncedAt = new Date().toISOString();
+
+    const productsToSave = productEdges.map(({ node }) => {
+      const firstVariant =
+        node.variants?.edges?.[0]?.node || null;
+
+      return {
+        user_id: userId,
+        store_type: "shopify",
+        store_name: connection.shop_domain,
+        store_connection_id: connection.id,
+
+        external_product_id: node.id,
+        external_variant_id: firstVariant?.id || null,
+
+        title: node.title || "",
+        description: node.description || "",
+        image_url: node.featuredImage?.url || null,
+        product_url:
+          `https://${connection.shop_domain}/products/${node.handle}`,
+
+        price: firstVariant?.price
+          ? Number(firstVariant.price)
+          : null,
+
+        currency,
+
+        tags: node.tags || [],
+
+        categories: node.productType
+          ? [node.productType]
+          : [],
+
+        metadata: {
+          handle: node.handle,
+          inventoryQuantity:
+            firstVariant?.inventoryQuantity ?? null,
+          shopifyStatus: node.status,
+        },
+
+        status:
+          String(node.status || "").toLowerCase() ===
+          "active"
+            ? "active"
+            : "inactive",
+
+        last_synced_at: syncedAt,
+        source_created_at: node.createdAt || null,
+        source_updated_at: node.updatedAt || null,
+        updated_at: syncedAt,
+      };
+    });
+
+    let savedProducts = [];
+
+    if (productsToSave.length > 0) {
+      const { data, error: upsertError } = await supabase
+        .from("products")
+        .upsert(productsToSave, {
+          onConflict:
+            "user_id,store_type,external_product_id",
+        })
+        .select();
+
+      if (upsertError) {
+        console.error(
+          "Shopify product sync failed:",
+          upsertError
+        );
+
+        return res.status(500).json({
+          success: false,
+          error:
+            "Products were retrieved from Shopify but could not be saved.",
+          details: upsertError.message,
+        });
+      }
+
+      savedProducts = data || [];
+    }
 
     res.json({
       success: true,
-      total: products.length,
-      products,
+      store: connection.shop_domain,
+      total: savedProducts.length,
+      products: savedProducts,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Shopify products route error:", err);
 
     res.status(500).json({
-      error: err.message,
+      success: false,
+      error: "Shopify product sync failed.",
+      details: err.message,
     });
   }
 });
