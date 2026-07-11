@@ -7,8 +7,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+
+import { supabase } from "@/lib/supabase";
 
 const BACKEND_URL = "https://artboost-ai.onrender.com";
 
@@ -33,11 +36,17 @@ const platforms = [
     description: "Fast text and artwork posting.",
     premium: true,
   },
+  {
+    name: "Shopify",
+    description: "Import products and automate store marketing.",
+    premium: true,
+  },
 ];
 
 export default function ConnectionsScreen() {
   const [connections, setConnections] = useState<any>({});
   const [loadingStatus, setLoadingStatus] = useState(false);
+  const [shopifyStore, setShopifyStore] = useState("");
 
   const saveConnections = async (updated: any) => {
     setConnections(updated);
@@ -86,12 +95,68 @@ export default function ConnectionsScreen() {
     }
   };
 
+  const checkShopifyStatus = async () => {
+  try {
+    const { data: sessionData } =
+      await supabase.auth.getSession();
+
+    const userId =
+      sessionData.session?.user?.id;
+
+    if (!userId) {
+      const saved =
+        await AsyncStorage.getItem(
+          "artboost_connections"
+        );
+
+      const current = saved
+        ? JSON.parse(saved)
+        : {};
+
+      await saveConnections({
+        ...current,
+        Shopify: false,
+      });
+
+      return;
+    }
+
+    const response = await fetch(
+      `${BACKEND_URL}/shopify/status?userId=${encodeURIComponent(
+        userId
+      )}`
+    );
+
+    const data = await response.json();
+
+    const saved =
+      await AsyncStorage.getItem(
+        "artboost_connections"
+      );
+
+    const current = saved
+      ? JSON.parse(saved)
+      : {};
+
+    await saveConnections({
+      ...current,
+      Shopify: Boolean(data.connected),
+    });
+  } catch (error) {
+    console.log(
+      "Shopify status check failed:",
+      error
+    );
+  }
+};
+
   const refreshAllStatuses = async () => {
     try {
       setLoadingStatus(true);
 
       await checkPinterestStatus();
       await checkFacebookStatus();
+      await checkShopifyStatus();
     } finally {
       setLoadingStatus(false);
     }
@@ -124,6 +189,54 @@ export default function ConnectionsScreen() {
       "After connecting Facebook, return to ArtBoost and tap Refresh Connection Status."
     );
   };
+
+  const connectShopify = async () => {
+  try {
+    const { data: sessionData } =
+      await supabase.auth.getSession();
+
+    const userId =
+      sessionData.session?.user?.id;
+
+    if (!userId) {
+      Alert.alert(
+        "Login Required",
+        "Please log in before connecting Shopify."
+      );
+      return;
+    }
+
+    const cleanStore = shopifyStore
+  .trim()
+  .replace(/^https?:\/\//, "")
+  .replace(/\/.*$/, "")
+  .replace(/\.myshopify\.com$/, "");
+
+if (!cleanStore) {
+  Alert.alert(
+    "Store Required",
+    "Please enter your Shopify store name."
+  );
+  return;
+}
+
+await Linking.openURL(
+  `${BACKEND_URL}/auth/shopify?userId=${encodeURIComponent(
+    userId
+  )}&shop=${encodeURIComponent(cleanStore)}`
+);
+
+    Alert.alert(
+      "Shopify Login Opened",
+      "Complete the Shopify authorization, then return to ArtBoost and tap Refresh Connection Status."
+    );
+  } catch (err: any) {
+    Alert.alert(
+      "Shopify Connection Failed",
+      err.message || "Unable to open Shopify."
+    );
+  }
+};
 
   const disconnectPlatform = async (platform: string) => {
     try {
@@ -204,6 +317,16 @@ export default function ConnectionsScreen() {
       return;
     }
 
+    if (platform === "Shopify") {
+  if (connections.Shopify) {
+    confirmDisconnect("Shopify");
+  } else {
+    await connectShopify();
+  }
+
+  return;
+}
+
     if (connections[platform]) {
       confirmDisconnect(platform);
       return;
@@ -249,6 +372,24 @@ export default function ConnectionsScreen() {
           {loadingStatus ? "Checking Connections..." : "Refresh Connection Status"}
         </Text>
       </Pressable>
+
+      <View style={styles.card}>
+  <Text style={styles.name}>Shopify Store</Text>
+
+  <Text style={styles.description}>
+    Enter your Shopify store name (example: artistwill)
+  </Text>
+
+  <TextInput
+    style={styles.input}
+    value={shopifyStore}
+    onChangeText={setShopifyStore}
+    placeholder="artistwill"
+    placeholderTextColor="#777"
+    autoCapitalize="none"
+    autoCorrect={false}
+  />
+</View>
 
       {platforms.map((platform) => {
         const connected = connections[platform.name];
@@ -398,6 +539,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontSize: 13,
   },
+
+  input: {
+  backgroundColor: "#2b2b2b",
+  color: "#fff",
+  borderRadius: 12,
+  padding: 14,
+  fontSize: 14,
+  marginTop: 14,
+},
 
   status: {
     marginTop: 10,
