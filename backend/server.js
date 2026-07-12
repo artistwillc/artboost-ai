@@ -2639,6 +2639,89 @@ app.get("/shopify/products", async (req, res) => {
   }
 });
 
+app.get("/products", async (req, res) => {
+  try {
+    const { userId, storeType, storeName, status, limit, offset } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const parsedLimit = Math.min(
+      Math.max(Number(limit) || 100, 1),
+      500
+    );
+
+    const parsedOffset = Math.max(Number(offset) || 0, 0);
+
+    let productsQuery = supabase
+      .from("products")
+      .select("*", { count: "exact" })
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .range(
+        parsedOffset,
+        parsedOffset + parsedLimit - 1
+      );
+
+    if (storeType) {
+      productsQuery = productsQuery.eq(
+        "store_type",
+        String(storeType).toLowerCase()
+      );
+    }
+
+    if (storeName) {
+      productsQuery = productsQuery.eq(
+        "store_name",
+        String(storeName)
+      );
+    }
+
+    if (status) {
+      productsQuery = productsQuery.eq(
+        "status",
+        String(status).toLowerCase()
+      );
+    }
+
+    const {
+      data: products,
+      error,
+      count,
+    } = await productsQuery;
+
+    if (error) {
+      console.error("Products load failed:", error);
+
+      return res.status(500).json({
+        success: false,
+        error: "Unable to load products.",
+        details: error.message,
+      });
+    }
+
+    res.json({
+      success: true,
+      total: count || 0,
+      limit: parsedLimit,
+      offset: parsedOffset,
+      products: products || [],
+    });
+  } catch (err) {
+    console.error("Products route error:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Products request failed.",
+      details: err.message,
+    });
+  }
+});
+
 app.get("/facebook/test", (req, res) => {
   res.json({
     connected: facebookConnection.connected,
