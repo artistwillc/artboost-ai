@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +39,7 @@ type Product = {
 };
 
 export default function ProductsScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [selectedStore, setSelectedStore] = useState("All");
@@ -408,14 +410,16 @@ export default function ProductsScreen() {
         </View>
       ) : (
         <FlatList
+          style={styles.productList}
           data={filteredProducts}
           keyExtractor={(item) => item.id}
           renderItem={renderProduct}
           ListEmptyComponent={renderEmptyState}
           contentContainerStyle={[
-            styles.listContent,
-            filteredProducts.length === 0 && styles.listContentEmpty,
-          ]}
+          styles.listContent,
+          { paddingBottom: tabBarHeight + 30 },
+          filteredProducts.length === 0 && styles.listContentEmpty,
+        ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -586,9 +590,12 @@ storeTabTextActive: {
     marginTop: 12,
   },
 
+  productList: {
+  flex: 1,
+},
+
   listContent: {
   paddingHorizontal: 20,
-  paddingBottom: 130,
 },
 
   listContentEmpty: {
