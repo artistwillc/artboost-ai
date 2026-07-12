@@ -2722,6 +2722,112 @@ app.get("/products", async (req, res) => {
   }
 });
 
+app.get("/stores", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const { data: connections, error: connectionsError } =
+      await supabase
+        .from("social_connections")
+        .select(
+          "id, platform, connected, shop_domain, connected_at, updated_at"
+        )
+        .eq("user_id", userId)
+        .in("platform", [
+          "shopify",
+          "etsy",
+          "ebay",
+          "redbubble",
+          "artpal",
+          "fine_art_america",
+          "woocommerce",
+          "printify",
+          "printful",
+          "bigcommerce",
+          "squarespace",
+          "custom_store",
+        ])
+        .order("updated_at", { ascending: false });
+
+    if (connectionsError) {
+      return res.status(500).json({
+        success: false,
+        error: "Unable to load store connections.",
+        details: connectionsError.message,
+      });
+    }
+
+    const { data: productRows, error: productError } =
+      await supabase
+        .from("products")
+        .select("store_type, store_name")
+        .eq("user_id", userId);
+
+    if (productError) {
+      return res.status(500).json({
+        success: false,
+        error: "Unable to load store product counts.",
+        details: productError.message,
+      });
+    }
+
+    const productCounts = {};
+
+    for (const product of productRows || []) {
+      const key = `${product.store_type || ""}::${
+        product.store_name || ""
+      }`;
+
+      productCounts[key] =
+        (productCounts[key] || 0) + 1;
+    }
+
+    const stores = (connections || []).map((connection) => {
+      const storeType = String(
+        connection.platform || ""
+      ).toLowerCase();
+
+      const storeName =
+        connection.shop_domain ||
+        connection.platform ||
+        "Store";
+
+      const countKey = `${storeType}::${storeName}`;
+
+      return {
+        id: connection.id,
+        storeType,
+        storeName,
+        connected: Boolean(connection.connected),
+        productCount: productCounts[countKey] || 0,
+        connectedAt: connection.connected_at || null,
+        updatedAt: connection.updated_at || null,
+      };
+    });
+
+    res.json({
+      success: true,
+      total: stores.length,
+      stores,
+    });
+  } catch (err) {
+    console.error("Stores route error:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Stores request failed.",
+      details: err.message,
+    });
+  }
+});
+
 app.get("/facebook/test", (req, res) => {
   res.json({
     connected: facebookConnection.connected,
