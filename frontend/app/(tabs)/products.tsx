@@ -49,8 +49,8 @@ export default function ProductsScreen() {
       }
 
       const response = await fetch(
-        `${API_BASE}/api/v2/products?userId=${encodeURIComponent(USER_ID)}`
-      );
+  `${API_BASE}/shopify/products?userId=${encodeURIComponent(USER_ID)}`
+);
 
       const data = await response.json();
 
@@ -58,7 +58,23 @@ export default function ProductsScreen() {
         throw new Error(data.details || data.error || "Unable to load products.");
       }
 
-      setProducts(data.products || []);
+  setProducts(
+  (data.products || []).map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    imageUrl: item.image_url,
+    productUrl: item.product_url,
+    price: item.price,
+    currency: item.currency,
+    storeType: item.store_type,
+    storeName: item.store_name,
+    status: item.status,
+    automationEnabled: item.automation_enabled || false,
+    timesPosted: item.times_posted || 0,
+    lastPostedAt: item.last_posted_at,
+  }))
+);
     } catch (error: any) {
       console.log("Products load failed:", error);
 
