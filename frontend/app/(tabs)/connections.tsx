@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -15,40 +16,111 @@ import { supabase } from "@/lib/supabase";
 
 const BACKEND_URL = "https://artboost-ai.onrender.com";
 
-const platforms = [
+type ConnectionSection = "social" | "stores";
+
+type PlatformItem = {
+  name: string;
+  description: string;
+  premium: boolean;
+  available: boolean;
+  connectionType?: string;
+};
+
+const socialPlatforms: PlatformItem[] = [
   {
     name: "Pinterest",
-    description: "Auto-publish pins and artwork campaigns.",
+    description: "Publish pins, artwork, and product campaigns.",
     premium: true,
+    available: true,
   },
   {
     name: "Facebook",
-    description: "Post artwork directly to Facebook Pages.",
+    description: "Post product and artwork campaigns to Facebook Pages.",
     premium: true,
+    available: true,
   },
   {
     name: "Instagram",
-    description: "Instagram Business publishing and captions.",
+    description: "Publish images and captions to Instagram Business.",
     premium: true,
+    available: true,
   },
   {
     name: "X",
-    description: "Fast text and artwork posting.",
+    description: "Publish product links, artwork, images, and short posts.",
     premium: true,
+    available: true,
   },
+];
+
+const storePlatforms: PlatformItem[] = [
   {
     name: "Shopify",
     description: "Import products and automate store marketing.",
     premium: true,
+    available: true,
+    connectionType: "Live Sync",
+  },
+  {
+    name: "Etsy",
+    description: "Import Etsy shop listings and product information.",
+    premium: true,
+    available: false,
+    connectionType: "Live Sync",
+  },
+  {
+    name: "eBay",
+    description: "Import active eBay listings and marketplace products.",
+    premium: true,
+    available: false,
+    connectionType: "Live Sync",
+  },
+  {
+    name: "Redbubble",
+    description: "Import products from a Redbubble storefront.",
+    premium: true,
+    available: false,
+    connectionType: "Catalog Import",
+  },
+  {
+    name: "ArtPal",
+    description: "Import artwork listings from an ArtPal gallery.",
+    premium: true,
+    available: false,
+    connectionType: "Catalog Import",
+  },
+  {
+    name: "Fine Art America",
+    description: "Import artwork and products from Fine Art America.",
+    premium: true,
+    available: false,
+    connectionType: "Catalog Import",
+  },
+  {
+    name: "Custom Store",
+    description:
+      "Add another store using a catalog feed, CSV file, store URL, or manual products.",
+    premium: true,
+    available: false,
+    connectionType: "Custom Import",
   },
 ];
 
 export default function ConnectionsScreen() {
-  const [connections, setConnections] = useState<any>({});
+  const [activeSection, setActiveSection] =
+    useState<ConnectionSection>("social");
+
+  const [connections, setConnections] = useState<Record<string, boolean>>({});
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [shopifyStore, setShopifyStore] = useState("");
 
-  const saveConnections = async (updated: any) => {
+  const visiblePlatforms = useMemo(() => {
+    return activeSection === "social" ? socialPlatforms : storePlatforms;
+  }, [activeSection]);
+
+  const saveConnections = async (
+    updated: Record<string, boolean>
+  ) => {
     setConnections(updated);
 
     await AsyncStorage.setItem(
@@ -57,231 +129,347 @@ export default function ConnectionsScreen() {
     );
   };
 
+  const getStoredConnections = async () => {
+    const saved = await AsyncStorage.getItem(
+      "artboost_connections"
+    );
+
+    return saved ? JSON.parse(saved) : {};
+  };
+
+  const updateStoredConnection = async (
+    platform: string,
+    connected: boolean
+  ) => {
+    const current = await getStoredConnections();
+
+    await saveConnections({
+      ...current,
+      [platform]: connected,
+    });
+  };
+
   const checkPinterestStatus = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/pinterest/status`);
+      const response = await fetch(
+        `${BACKEND_URL}/pinterest/status`
+      );
+
       const data = await response.json();
 
-      const saved = await AsyncStorage.getItem("artboost_connections");
-      const current = saved ? JSON.parse(saved) : {};
-
-      const updated = {
-        ...current,
-        Pinterest: Boolean(data.connected),
-      };
-
-      await saveConnections(updated);
+      await updateStoredConnection(
+        "Pinterest",
+        Boolean(data.connected)
+      );
     } catch (error) {
-      console.log("Pinterest status check failed:", error);
+      console.log(
+        "Pinterest status check failed:",
+        error
+      );
     }
   };
 
   const checkFacebookStatus = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/facebook/test`);
+      const response = await fetch(
+        `${BACKEND_URL}/facebook/test`
+      );
+
       const data = await response.json();
 
-      const saved = await AsyncStorage.getItem("artboost_connections");
-      const current = saved ? JSON.parse(saved) : {};
-
-      const updated = {
-        ...current,
-        Facebook: Boolean(data.connected),
-      };
-
-      await saveConnections(updated);
+      await updateStoredConnection(
+        "Facebook",
+        Boolean(data.connected)
+      );
     } catch (error) {
-      console.log("Facebook status check failed:", error);
+      console.log(
+        "Facebook status check failed:",
+        error
+      );
+    }
+  };
+
+  const checkInstagramStatus = async () => {
+    try {
+      const response = await fetch(
+        `${BACKEND_URL}/instagram/status`
+      );
+
+      const data = await response.json();
+
+      await updateStoredConnection(
+        "Instagram",
+        Boolean(data.connected)
+      );
+    } catch (error) {
+      console.log(
+        "Instagram status check failed:",
+        error
+      );
+    }
+  };
+
+  const checkXStatus = async () => {
+    try {
+      const response = await fetch(
+        `${BACKEND_URL}/x/status`
+      );
+
+      const data = await response.json();
+
+      await updateStoredConnection(
+        "X",
+        Boolean(data.connected)
+      );
+    } catch (error) {
+      console.log("X status check failed:", error);
     }
   };
 
   const checkShopifyStatus = async () => {
-  try {
-    const { data: sessionData } =
-      await supabase.auth.getSession();
+    try {
+      const { data: sessionData } =
+        await supabase.auth.getSession();
 
-    const userId =
-      sessionData.session?.user?.id;
+      const userId =
+        sessionData.session?.user?.id;
 
-    if (!userId) {
-      const saved =
-        await AsyncStorage.getItem(
-          "artboost_connections"
+      if (!userId) {
+        await updateStoredConnection(
+          "Shopify",
+          false
         );
 
-      const current = saved
-        ? JSON.parse(saved)
-        : {};
+        return;
+      }
 
-      await saveConnections({
-        ...current,
-        Shopify: false,
-      });
-
-      return;
-    }
-
-    const response = await fetch(
-      `${BACKEND_URL}/shopify/status?userId=${encodeURIComponent(
-        userId
-      )}`
-    );
-
-    const data = await response.json();
-
-    const saved =
-      await AsyncStorage.getItem(
-        "artboost_connections"
+      const response = await fetch(
+        `${BACKEND_URL}/shopify/status?userId=${encodeURIComponent(
+          userId
+        )}`
       );
 
-    const current = saved
-      ? JSON.parse(saved)
-      : {};
+      const data = await response.json();
 
-    await saveConnections({
-      ...current,
-      Shopify: Boolean(data.connected),
-    });
-  } catch (error) {
-    console.log(
-      "Shopify status check failed:",
-      error
-    );
-  }
-};
+      await updateStoredConnection(
+        "Shopify",
+        Boolean(data.connected)
+      );
+
+      if (data.shopDomain) {
+        setShopifyStore(
+          String(data.shopDomain).replace(
+            /\.myshopify\.com$/i,
+            ""
+          )
+        );
+      }
+    } catch (error) {
+      console.log(
+        "Shopify status check failed:",
+        error
+      );
+    }
+  };
 
   const refreshAllStatuses = async () => {
     try {
       setLoadingStatus(true);
 
-      await checkPinterestStatus();
-      await checkFacebookStatus();
-      await checkShopifyStatus();
+      await Promise.all([
+        checkPinterestStatus(),
+        checkFacebookStatus(),
+        checkInstagramStatus(),
+        checkXStatus(),
+        checkShopifyStatus(),
+      ]);
     } finally {
       setLoadingStatus(false);
     }
   };
 
   const loadConnections = async () => {
-    const saved = await AsyncStorage.getItem("artboost_connections");
+    const current =
+      await getStoredConnections();
 
-    if (saved) {
-      setConnections(JSON.parse(saved));
-    }
+    setConnections(current);
 
     await refreshAllStatuses();
   };
 
   const connectPinterest = async () => {
-    await Linking.openURL(`${BACKEND_URL}/auth/pinterest`);
+    await Linking.openURL(
+      `${BACKEND_URL}/auth/pinterest`
+    );
 
     Alert.alert(
       "Pinterest Login Opened",
-      "After connecting Pinterest, return to ArtBoost and tap Refresh Connection Status."
+      "Complete the Pinterest authorization, return to ArtBoost, and refresh the connection status."
     );
   };
 
   const connectFacebook = async () => {
-    await Linking.openURL(`${BACKEND_URL}/auth/facebook`);
+    await Linking.openURL(
+      `${BACKEND_URL}/auth/facebook`
+    );
 
     Alert.alert(
       "Facebook Login Opened",
-      "After connecting Facebook, return to ArtBoost and tap Refresh Connection Status."
+      "Complete the Facebook authorization, return to ArtBoost, and refresh the connection status."
     );
   };
 
   const connectShopify = async () => {
-  try {
-    const { data: sessionData } =
-      await supabase.auth.getSession();
-
-    const userId =
-      sessionData.session?.user?.id;
-
-    if (!userId) {
-      Alert.alert(
-        "Login Required",
-        "Please log in before connecting Shopify."
-      );
-      return;
-    }
-
-    const cleanStore = shopifyStore
-  .trim()
-  .replace(/^https?:\/\//, "")
-  .replace(/\/.*$/, "")
-  .replace(/\.myshopify\.com$/, "");
-
-if (!cleanStore) {
-  Alert.alert(
-    "Store Required",
-    "Please enter your Shopify store name."
-  );
-  return;
-}
-
-await Linking.openURL(
-  `${BACKEND_URL}/auth/shopify?userId=${encodeURIComponent(
-    userId
-  )}&shop=${encodeURIComponent(cleanStore)}`
-);
-
-    Alert.alert(
-      "Shopify Login Opened",
-      "Complete the Shopify authorization, then return to ArtBoost and tap Refresh Connection Status."
-    );
-  } catch (err: any) {
-    Alert.alert(
-      "Shopify Connection Failed",
-      err.message || "Unable to open Shopify."
-    );
-  }
-};
-
-  const disconnectPlatform = async (platform: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/disconnect-platform`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          platform,
-        }),
-      });
+      const { data: sessionData } =
+        await supabase.auth.getSession();
 
-      const data = await response.json();
+      const userId =
+        sessionData.session?.user?.id;
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || `Failed to disconnect ${platform}.`);
+      if (!userId) {
+        Alert.alert(
+          "Login Required",
+          "Please log in before connecting Shopify."
+        );
+
+        return;
       }
 
-      const updated = {
-        ...connections,
-        [platform]: false,
-      };
+      const cleanStore = shopifyStore
+        .trim()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/.*$/, "")
+        .replace(/\.myshopify\.com$/i, "");
 
-      await saveConnections(updated);
-      await refreshAllStatuses();
+      if (!cleanStore) {
+        Alert.alert(
+          "Store Required",
+          "Enter your Shopify store name before connecting."
+        );
 
-      Alert.alert(
-        `${platform} Disconnected`,
-        `${platform} has been disconnected successfully.`
+        return;
+      }
+
+      await Linking.openURL(
+        `${BACKEND_URL}/auth/shopify?userId=${encodeURIComponent(
+          userId
+        )}&shop=${encodeURIComponent(cleanStore)}`
       );
-    } catch (err: any) {
-      console.log(`${platform} disconnect failed:`, err);
 
       Alert.alert(
-        "Disconnect Failed",
-        err.message || `Failed to disconnect ${platform}.`
+        "Shopify Login Opened",
+        "Complete the Shopify authorization, return to ArtBoost, and refresh the connection status."
+      );
+    } catch (error: any) {
+      Alert.alert(
+        "Shopify Connection Failed",
+        error?.message ||
+          "Unable to open Shopify."
       );
     }
   };
 
-  const confirmDisconnect = (platform: string) => {
+  const connectPlatform = async (
+    platform: string
+  ) => {
+    if (platform === "Pinterest") {
+      await connectPinterest();
+      return;
+    }
+
+    if (platform === "Facebook") {
+      await connectFacebook();
+      return;
+    }
+
+    if (platform === "Shopify") {
+      await connectShopify();
+      return;
+    }
+
+    if (
+      platform === "Instagram" ||
+      platform === "X"
+    ) {
+      Alert.alert(
+        `${platform} Connection`,
+        `${platform} is currently configured through the ArtBoost server. Account-level OAuth will be added in a later update.`
+      );
+
+      return;
+    }
+
+    Alert.alert(
+      `${platform} Coming Soon`,
+      `${platform} integration has been added to the ArtBoost roadmap but is not available yet.`
+    );
+  };
+
+  const disconnectPlatform = async (
+    platform: string
+  ) => {
+    try {
+      const { data: sessionData } =
+        await supabase.auth.getSession();
+
+      const userId =
+        sessionData.session?.user?.id || null;
+
+      const response = await fetch(
+        `${BACKEND_URL}/disconnect-platform`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            platform,
+            userId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error ||
+            `Failed to disconnect ${platform}.`
+        );
+      }
+
+      await updateStoredConnection(
+        platform,
+        false
+      );
+
+      await refreshAllStatuses();
+
+      Alert.alert(
+        `${platform} Disconnected`,
+        `${platform} was disconnected successfully.`
+      );
+    } catch (error: any) {
+      console.log(
+        `${platform} disconnect failed:`,
+        error
+      );
+
+      Alert.alert(
+        "Disconnect Failed",
+        error?.message ||
+          `Failed to disconnect ${platform}.`
+      );
+    }
+  };
+
+  const confirmDisconnect = (
+    platform: string
+  ) => {
     Alert.alert(
       `Disconnect ${platform}?`,
-      `You will need to reconnect ${platform} before posting to it again.`,
+      `You will need to reconnect ${platform} before using it again.`,
       [
         {
           text: "Cancel",
@@ -290,58 +478,10 @@ await Linking.openURL(
         {
           text: "Disconnect",
           style: "destructive",
-          onPress: () => disconnectPlatform(platform),
+          onPress: () =>
+            disconnectPlatform(platform),
         },
       ]
-    );
-  };
-
-  const toggleConnection = async (platform: string) => {
-    if (platform === "Pinterest") {
-      if (connections.Pinterest) {
-        confirmDisconnect("Pinterest");
-      } else {
-        await connectPinterest();
-      }
-
-      return;
-    }
-
-    if (platform === "Facebook") {
-      if (connections.Facebook) {
-        confirmDisconnect("Facebook");
-      } else {
-        await connectFacebook();
-      }
-
-      return;
-    }
-
-    if (platform === "Shopify") {
-  if (connections.Shopify) {
-    confirmDisconnect("Shopify");
-  } else {
-    await connectShopify();
-  }
-
-  return;
-}
-
-    if (connections[platform]) {
-      confirmDisconnect(platform);
-      return;
-    }
-
-    const updated = {
-      ...connections,
-      [platform]: true,
-    };
-
-    await saveConnections(updated);
-
-    Alert.alert(
-      `${platform} Connected`,
-      `Your ${platform} account is now connected.`
     );
   };
 
@@ -349,103 +489,234 @@ await Linking.openURL(
     loadConnections();
   }, []);
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Connections</Text>
+  const renderPlatformCard = (
+    platform: PlatformItem
+  ) => {
+    const connected =
+      Boolean(connections[platform.name]);
 
-      <Text style={styles.subheader}>
-        Connect creator platforms for automated publishing and Pro workflow
-        tools.
+    return (
+      <View
+        key={platform.name}
+        style={styles.card}
+      >
+        <View style={styles.row}>
+          <View style={styles.platformInfo}>
+            <View style={styles.titleRow}>
+              <Text style={styles.name}>
+                {platform.name}
+              </Text>
+
+              {platform.premium ? (
+                <View style={styles.proBadge}>
+                  <Text
+                    style={styles.proBadgeText}
+                  >
+                    PRO
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {platform.connectionType ? (
+              <Text style={styles.connectionType}>
+                {platform.connectionType}
+              </Text>
+            ) : null}
+
+            <Text style={styles.description}>
+              {platform.description}
+            </Text>
+
+            <Text
+              style={[
+                styles.status,
+                connected
+                  ? styles.connectedText
+                  : styles.disconnectedText,
+              ]}
+            >
+              {connected
+                ? "Connected"
+                : platform.available
+                ? "Not Connected"
+                : "Coming Soon"}
+            </Text>
+          </View>
+
+          <View style={styles.buttonColumn}>
+            <Pressable
+              style={[
+                styles.button,
+                !platform.available
+                  ? styles.comingSoonButton
+                  : connected
+                  ? styles.reconnectButton
+                  : styles.connectButton,
+              ]}
+              disabled={!platform.available}
+              onPress={() =>
+                connectPlatform(platform.name)
+              }
+            >
+              <Text style={styles.buttonText}>
+                {!platform.available
+                  ? "Coming Soon"
+                  : connected
+                  ? "Reconnect"
+                  : "Connect"}
+              </Text>
+            </Pressable>
+
+            {connected ? (
+              <Pressable
+                style={[
+                  styles.button,
+                  styles.disconnectButton,
+                ]}
+                onPress={() =>
+                  confirmDisconnect(
+                    platform.name
+                  )
+                }
+              >
+                <Text style={styles.buttonText}>
+                  Disconnect
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Text style={styles.header}>
+        Connections
       </Text>
 
+      <Text style={styles.subheader}>
+        Connect social platforms for publishing
+        and stores for product imports and
+        automated marketing.
+      </Text>
+
+      <View style={styles.segmentedControl}>
+        <Pressable
+          style={[
+            styles.segmentButton,
+            activeSection === "social" &&
+              styles.segmentButtonActive,
+          ]}
+          onPress={() =>
+            setActiveSection("social")
+          }
+        >
+          <Text
+            style={[
+              styles.segmentText,
+              activeSection === "social" &&
+                styles.segmentTextActive,
+            ]}
+          >
+            Social Platforms
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.segmentButton,
+            activeSection === "stores" &&
+              styles.segmentButtonActive,
+          ]}
+          onPress={() =>
+            setActiveSection("stores")
+          }
+        >
+          <Text
+            style={[
+              styles.segmentText,
+              activeSection === "stores" &&
+                styles.segmentTextActive,
+            ]}
+          >
+            Stores
+          </Text>
+        </Pressable>
+      </View>
+
       <View style={styles.proBox}>
-        <Text style={styles.proTitle}>ArtBoost Pro</Text>
+        <Text style={styles.proTitle}>
+          {activeSection === "social"
+            ? "Social Publishing"
+            : "Store Connections"}
+        </Text>
 
         <Text style={styles.proText}>
-          Connect platforms once, then generate and publish campaigns
-          automatically.
+          {activeSection === "social"
+            ? "Connect publishing destinations for generated and scheduled campaigns."
+            : "Connect product sources so ArtBoost can import, organize, and promote listings."}
         </Text>
       </View>
 
-      <Pressable style={styles.refreshButton} onPress={refreshAllStatuses}>
-        <Text style={styles.buttonText}>
-          {loadingStatus ? "Checking Connections..." : "Refresh Connection Status"}
-        </Text>
+      <Pressable
+        style={styles.refreshButton}
+        onPress={refreshAllStatuses}
+        disabled={loadingStatus}
+      >
+        {loadingStatus ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator
+              size="small"
+              color="#ffffff"
+            />
+            <Text style={styles.buttonText}>
+              Checking Connections...
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.buttonText}>
+            Refresh Connection Status
+          </Text>
+        )}
       </Pressable>
 
-      <View style={styles.card}>
-  <Text style={styles.name}>Shopify Store</Text>
+      {activeSection === "stores" ? (
+        <View style={styles.shopifyEntryCard}>
+          <Text style={styles.name}>
+            Shopify Store
+          </Text>
 
-  <Text style={styles.description}>
-    Enter your Shopify store name (example: artistwill)
-  </Text>
+          <Text style={styles.description}>
+            Enter the store prefix or full
+            myshopify.com address.
+          </Text>
 
-  <TextInput
-    style={styles.input}
-    value={shopifyStore}
-    onChangeText={setShopifyStore}
-    placeholder="artistwill"
-    placeholderTextColor="#777"
-    autoCapitalize="none"
-    autoCorrect={false}
-  />
-</View>
+          <TextInput
+            style={styles.input}
+            value={shopifyStore}
+            onChangeText={setShopifyStore}
+            placeholder="artistwill"
+            placeholderTextColor="#777"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-      {platforms.map((platform) => {
-        const connected = connections[platform.name];
+          <Text style={styles.inputHint}>
+            Example: artistwill or
+            artistwill.myshopify.com
+          </Text>
+        </View>
+      ) : null}
 
-        return (
-          <View key={platform.name} style={styles.card}>
-            <View style={styles.row}>
-              <View style={styles.platformInfo}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.name}>{platform.name}</Text>
-
-                  {platform.premium && (
-                    <View style={styles.proBadge}>
-                      <Text style={styles.proBadgeText}>PRO</Text>
-                    </View>
-                  )}
-                </View>
-
-                <Text style={styles.description}>{platform.description}</Text>
-
-                <Text
-                  style={[
-                    styles.status,
-                    connected ? styles.connectedText : styles.disconnectedText,
-                  ]}
-                >
-                  {connected ? "Connected" : "Not Connected"}
-                </Text>
-              </View>
-
-              <View style={styles.buttonColumn}>
-                <Pressable
-                  style={[
-                    styles.button,
-                    connected ? styles.reconnectButton : styles.connect,
-                  ]}
-                  onPress={() => toggleConnection(platform.name)}
-                >
-                  <Text style={styles.buttonText}>
-                    {connected ? "Reconnect" : "Connect"}
-                  </Text>
-                </Pressable>
-
-                {connected && (
-                  <Pressable
-                    style={[styles.button, styles.disconnect]}
-                    onPress={() => confirmDisconnect(platform.name)}
-                  >
-                    <Text style={styles.buttonText}>Disconnect</Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          </View>
-        );
-      })}
+      {visiblePlatforms.map(
+        renderPlatformCard
+      )}
     </ScrollView>
   );
 }
@@ -453,12 +724,13 @@ await Linking.openURL(
 const styles = StyleSheet.create({
   container: {
     padding: 20,
+    paddingBottom: 40,
     backgroundColor: "#101010",
     minHeight: "100%",
   },
 
   header: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 32,
     fontWeight: "800",
     marginTop: 40,
@@ -466,25 +738,59 @@ const styles = StyleSheet.create({
   },
 
   subheader: {
-    color: "#aaa",
+    color: "#aaaaaa",
     fontSize: 15,
     textAlign: "center",
     marginTop: 10,
-    marginBottom: 24,
+    marginBottom: 20,
     lineHeight: 22,
+  },
+
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "#1b1b1b",
+    borderRadius: 16,
+    padding: 5,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#303030",
+  },
+
+  segmentButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+
+  segmentButtonActive: {
+    backgroundColor: "#8b5cf6",
+  },
+
+  segmentText: {
+    color: "#8e8e8e",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  segmentTextActive: {
+    color: "#ffffff",
   },
 
   proBox: {
     backgroundColor: "#1b1b1b",
     borderRadius: 18,
     padding: 18,
-    marginBottom: 20,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: "#8b5cf6",
   },
 
   proTitle: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 20,
     fontWeight: "900",
     marginBottom: 8,
@@ -501,7 +807,22 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    marginBottom: 22,
+    marginBottom: 20,
+  },
+
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+
+  shopifyEntryCard: {
+    backgroundColor: "#1b1b1b",
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#343434",
   },
 
   card: {
@@ -509,6 +830,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 18,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#282828",
   },
 
   row: {
@@ -525,29 +848,47 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
   },
 
   name: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 20,
     fontWeight: "800",
   },
 
+  connectionType: {
+    color: "#a78bfa",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginTop: 7,
+  },
+
   description: {
-    color: "#aaa",
+    color: "#aaaaaa",
     marginTop: 8,
     lineHeight: 20,
     fontSize: 13,
   },
 
   input: {
-  backgroundColor: "#2b2b2b",
-  color: "#fff",
-  borderRadius: 12,
-  padding: 14,
-  fontSize: 14,
-  marginTop: 14,
-},
+    backgroundColor: "#2b2b2b",
+    color: "#ffffff",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 14,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: "#3b3b3b",
+  },
+
+  inputHint: {
+    color: "#777777",
+    fontSize: 11,
+    marginTop: 8,
+  },
 
   status: {
     marginTop: 10,
@@ -560,22 +901,24 @@ const styles = StyleSheet.create({
   },
 
   disconnectedText: {
-    color: "#999",
+    color: "#999999",
   },
 
   buttonColumn: {
-    minWidth: 112,
+    width: 112,
   },
 
   button: {
-    paddingVertical: 11,
-    paddingHorizontal: 14,
+    minHeight: 43,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
 
-  connect: {
+  connectButton: {
     backgroundColor: "#12a86b",
   },
 
@@ -583,14 +926,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#2d6cdf",
   },
 
-  disconnect: {
+  disconnectButton: {
     backgroundColor: "#a62828",
   },
 
+  comingSoonButton: {
+    backgroundColor: "#3a3a3a",
+  },
+
   buttonText: {
-    color: "#fff",
+    color: "#ffffff",
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13,
+    textAlign: "center",
   },
 
   proBadge: {
@@ -602,7 +950,7 @@ const styles = StyleSheet.create({
   },
 
   proBadgeText: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 10,
     fontWeight: "900",
   },
