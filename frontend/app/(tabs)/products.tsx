@@ -384,7 +384,14 @@ export default function ProductsScreen() {
 
 <Pressable
   style={styles.addStoreTab}
-  onPress={() => router.push("/store-connections" as any)}
+  onPress={() =>
+  router.push({
+    pathname: "/connections" as any,
+    params: {
+      section: "stores",
+    },
+  })
+}
 >
   <Ionicons name="add" size={18} color="#ffffff" />
   <Text style={styles.addStoreTabText}>Add Store</Text>
