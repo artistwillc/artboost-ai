@@ -312,7 +312,7 @@ export default function ProductsScreen() {
         <View>
           <Text style={styles.eyebrow}>ARTBOOST AI</Text>
           <Text style={styles.title}>
-          Products TEST
+          Products
           </Text>
           <Text style={styles.subtitle}>
             Build your product library and automate promotion.
