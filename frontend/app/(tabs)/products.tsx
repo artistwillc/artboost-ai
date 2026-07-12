@@ -40,8 +40,20 @@ type Product = {
 export default function ProductsScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedStore, setSelectedStore] = useState("All");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const stores = useMemo(() => {
+  const unique = Array.from(
+    new Set(
+      products
+        .map((p) => p.storeName || p.storeType)
+        .filter(Boolean)
+    )
+  );
+
+  return ["All", ...unique];
+}, [products]);
 
   const loadProducts = useCallback(async (showLoader = true) => {
     try {
@@ -96,25 +108,30 @@ export default function ProductsScreen() {
   );
 
   const filteredProducts = useMemo(() => {
-    const cleanSearch = search.trim().toLowerCase();
+  const cleanSearch = search.trim().toLowerCase();
 
-    if (!cleanSearch) {
-      return products;
-    }
+  return products.filter((product) => {
+    const matchesStore =
+      selectedStore === "All" ||
+      product.storeName === selectedStore ||
+      product.storeType === selectedStore;
 
-    return products.filter((product) => {
-      return [
+    const matchesSearch =
+      !cleanSearch ||
+      [
         product.title,
         product.description,
-        product.storeType,
         product.storeName,
+        product.storeType,
       ]
         .filter(Boolean)
         .some((value) =>
           String(value).toLowerCase().includes(cleanSearch)
         );
-    });
-  }, [products, search]);
+
+    return matchesStore && matchesSearch;
+  });
+}, [products, search, selectedStore]);
 
   function openImportOptions() {
     Alert.alert("Add Products", "Choose how you want to add products.", [
@@ -336,6 +353,32 @@ export default function ProductsScreen() {
         </View>
       </View>
 
+      <ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  contentContainerStyle={styles.storeTabs}
+>
+  {stores.map((store) => (
+    <Pressable
+      key={store}
+      style={[
+        styles.storeTab,
+        selectedStore === store && styles.storeTabActive,
+      ]}
+      onPress={() => setSelectedStore(store)}
+    >
+      <Text
+        style={[
+          styles.storeTabText,
+          selectedStore === store && styles.storeTabTextActive,
+        ]}
+      >
+        {store}
+      </Text>
+    </Pressable>
+  ))}
+</ScrollView>
+
       <View style={styles.searchWrap}>
         <Ionicons name="search" size={20} color="#777" />
 
@@ -469,6 +512,39 @@ const styles = StyleSheet.create({
     height: 34,
     backgroundColor: "#333",
   },
+
+  storeTabs: {
+  paddingHorizontal: 20,
+  paddingBottom: 14,
+  gap: 10,
+},
+
+storeTab: {
+  height: 40,
+  paddingHorizontal: 18,
+  borderRadius: 20,
+  backgroundColor: "#171717",
+  borderWidth: 1,
+  borderColor: "#292929",
+  justifyContent: "center",
+  alignItems: "center",
+  marginRight: 10,
+},
+
+storeTabActive: {
+  backgroundColor: "#8b5cf6",
+  borderColor: "#8b5cf6",
+},
+
+storeTabText: {
+  color: "#bdbdbd",
+  fontSize: 14,
+  fontWeight: "700",
+},
+
+storeTabTextActive: {
+  color: "#ffffff",
+},
 
   searchWrap: {
     marginHorizontal: 20,
