@@ -10,6 +10,7 @@ import {
   Pressable,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -291,7 +292,9 @@ export default function ProductsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>ARTBOOST AI</Text>
-          <Text style={styles.title}>Products</Text>
+          <Text style={styles.title}>
+          Products TEST
+          </Text>
           <Text style={styles.subtitle}>
             Build your product library and automate promotion.
           </Text>
