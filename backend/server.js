@@ -11,20 +11,20 @@ import { v2 as cloudinary } from "cloudinary";
 import OAuth from "oauth-1.0a";
 import CryptoJS from "crypto-js";
 import crypto from "crypto";
- 
+
 dotenv.config({ override: true });
- 
+
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 const PORT = process.env.PORT || 3000;
- 
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
- 
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
- 
+
 const PINTEREST_API_BASE =
   process.env.PINTEREST_API_BASE || "https://api-sandbox.pinterest.com";
 const PINTEREST_CLIENT_ID = process.env.PINTEREST_CLIENT_ID;
@@ -41,13 +41,13 @@ const SHOPIFY_REDIRECT_URI =
   "https://artboost-ai.onrender.com/auth/shopify/callback";
 const SHOPIFY_API_VERSION =
   process.env.SHOPIFY_API_VERSION || "2026-07";
- 
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
- 
+
 let pinterestConnection = {
   connected: false,
   token: null,
@@ -58,7 +58,7 @@ let pinterestConnection = {
   refreshTokenExpiresAt: null,
   connectedAt: null,
 };
- 
+
 const mapCampaignFromDb = (item) => ({
   id: item.id,
   userId: item.user_id,
@@ -83,13 +83,13 @@ const mapCampaignFromDb = (item) => ({
   repeatType: item.repeat_type,
   nextRunAt: item.next_run_at,
   repeatUntil: item.repeat_until,
-  
+
 
   posts: item.posts || 0,
   views: item.views || 0,
   clicks: item.clicks || 0,
 });
- 
+
 async function createNotification({
   userId,
   title,
@@ -104,7 +104,7 @@ async function createNotification({
       type,
       unread: true,
     });
- 
+
     if (error) {
       console.log("Notification insert failed:", error.message);
     }
@@ -112,7 +112,7 @@ async function createNotification({
     console.log("Notification error:", err.message);
   }
 }
- 
+
 async function checkCampaignLimit(userId, platform) {
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -170,7 +170,7 @@ async function checkCampaignLimit(userId, platform) {
     allowed: true,
   };
 }
- 
+
 async function updateProfileByUserIdOrEmail({ userId, email, updateData }) {
   if (userId) {
     const { data, error } = await supabase
@@ -178,66 +178,66 @@ async function updateProfileByUserIdOrEmail({ userId, email, updateData }) {
       .update(updateData)
       .eq("id", userId)
       .select();
- 
+
     if (!error && data && data.length > 0) {
       console.log("Profile updated by userId:", userId);
       return true;
     }
- 
+
     if (error) {
       console.log("Profile update by userId failed:", error.message);
     }
   }
- 
+
   if (email) {
     const { data, error } = await supabase
       .from("profiles")
       .update(updateData)
       .eq("email", email)
       .select();
- 
+
     if (!error && data && data.length > 0) {
       console.log("Profile updated by email:", email);
       return true;
     }
- 
+
     if (error) {
       console.log("Profile update by email failed:", error.message);
     }
   }
- 
+
   console.log("No matching profile found for Stripe update.", {
     userId,
     email,
   });
   return false;
 }
- 
+
 async function syncStripeSubscriptionForUser({ userId, email }) {
   if (!email) {
     throw new Error("Email is required to sync Stripe subscription.");
   }
- 
+
   const customers = await stripe.customers.list({
     email,
     limit: 10,
   });
- 
+
   if (!customers.data.length) {
     const updateData = {
-  is_pro: false,
-  subscription_tier: "free",
-  subscription_status: "free",
-  plan: "free",
-  updated_at: new Date().toISOString(),
-};
- 
+      is_pro: false,
+      subscription_tier: "free",
+      subscription_status: "free",
+      plan: "free",
+      updated_at: new Date().toISOString(),
+    };
+
     await updateProfileByUserIdOrEmail({
       userId,
       email,
       updateData,
     });
- 
+
     return {
       synced: true,
       foundCustomer: false,
@@ -245,16 +245,16 @@ async function syncStripeSubscriptionForUser({ userId, email }) {
       message: "No Stripe customer found for this email.",
     };
   }
- 
+
   let bestMatch = null;
- 
+
   for (const customer of customers.data) {
     const subscriptions = await stripe.subscriptions.list({
       customer: customer.id,
       status: "all",
       limit: 10,
     });
- 
+
     const activeSubscription =
       subscriptions.data.find((sub) =>
         ["active", "trialing"].includes(sub.status)
@@ -263,22 +263,22 @@ async function syncStripeSubscriptionForUser({ userId, email }) {
         ["past_due", "unpaid", "incomplete"].includes(sub.status)
       ) ||
       subscriptions.data[0];
- 
+
     if (activeSubscription) {
       bestMatch = {
         customer,
         subscription: activeSubscription,
       };
- 
+
       if (["active", "trialing"].includes(activeSubscription.status)) {
         break;
       }
     }
   }
- 
+
   if (!bestMatch) {
     const newestCustomer = customers.data[0];
- 
+
     const updateData = {
       is_pro: false,
       subscription_tier: "free",
@@ -287,13 +287,13 @@ async function syncStripeSubscriptionForUser({ userId, email }) {
       stripe_customer_id: newestCustomer.id,
       updated_at: new Date().toISOString(),
     };
- 
+
     await updateProfileByUserIdOrEmail({
       userId,
       email,
       updateData,
     });
- 
+
     return {
       synced: true,
       foundCustomer: true,
@@ -302,44 +302,44 @@ async function syncStripeSubscriptionForUser({ userId, email }) {
       message: "Stripe customer found, but no subscription found.",
     };
   }
- 
+
   const { customer, subscription } = bestMatch;
   const isActive = ["active", "trialing"].includes(subscription.status);
   const priceId = subscription.items?.data?.[0]?.price?.id || "";
   const monthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID;
   const yearlyPriceId = process.env.STRIPE_YEARLY_PRICE_ID;
- 
+
   let plan = subscription.metadata?.plan || "monthly";
- 
+
   if (priceId && priceId === yearlyPriceId) {
     plan = "yearly";
   }
- 
+
   if (priceId && priceId === monthlyPriceId) {
     plan = "monthly";
   }
- 
+
   const currentPeriodEnd = subscription.current_period_end
     ? new Date(subscription.current_period_end * 1000).toISOString()
     : null;
- 
+
   const updateData = {
-  is_pro: isActive,
-  subscription_tier: isActive ? "pro" : "free",
-  subscription_status: subscription.status,
-  plan: isActive ? plan : "free",
-  stripe_customer_id: customer.id,
-  stripe_subscription_id: subscription.id,
-  current_period_end: currentPeriodEnd,
-  updated_at: new Date().toISOString(),
-};
- 
+    is_pro: isActive,
+    subscription_tier: isActive ? "pro" : "free",
+    subscription_status: subscription.status,
+    plan: isActive ? plan : "free",
+    stripe_customer_id: customer.id,
+    stripe_subscription_id: subscription.id,
+    current_period_end: currentPeriodEnd,
+    updated_at: new Date().toISOString(),
+  };
+
   await updateProfileByUserIdOrEmail({
     userId,
     email,
     updateData,
   });
- 
+
   return {
     synced: true,
     foundCustomer: true,
@@ -350,14 +350,14 @@ async function syncStripeSubscriptionForUser({ userId, email }) {
     plan: updateData.plan,
   };
 }
- 
+
 app.post(
   "/stripe-webhook",
   express.raw({ type: "application/json" }),
   async (req, res) => {
     const sig = req.headers["stripe-signature"];
     let event;
- 
+
     try {
       event = stripe.webhooks.constructEvent(
         req.body,
@@ -368,7 +368,7 @@ app.post(
       console.log("Webhook signature verification failed:", err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
- 
+
     try {
       switch (event.type) {
         case "checkout.session.completed": {
@@ -377,37 +377,37 @@ app.post(
           const plan = session.metadata?.plan || "monthly";
           const customerEmail =
             session.metadata?.userEmail || session.customer_details?.email || "";
- 
+
           const updateData = {
-  is_pro: true,
-  subscription_tier: "pro",
-  subscription_status: "active",
-  plan,
-  stripe_customer_id: session.customer,
-  stripe_subscription_id: session.subscription,
-  updated_at: new Date().toISOString(),
-};
- 
+            is_pro: true,
+            subscription_tier: "pro",
+            subscription_status: "active",
+            plan,
+            stripe_customer_id: session.customer,
+            stripe_subscription_id: session.subscription,
+            updated_at: new Date().toISOString(),
+          };
+
           await updateProfileByUserIdOrEmail({
             userId,
             email: customerEmail,
             updateData,
           });
- 
+
           if (customerEmail) {
             await syncStripeSubscriptionForUser({
               userId,
               email: customerEmail,
             });
           }
- 
+
           await createNotification({
             userId,
             title: "Pro Subscription Activated",
             message: "Your ArtBoost AI Pro subscription is active.",
             type: "success",
           });
- 
+
           console.log("Checkout completed:", {
             userId,
             customerEmail,
@@ -415,7 +415,7 @@ app.post(
           });
           break;
         }
- 
+
         case "customer.subscription.created":
         case "customer.subscription.updated": {
           const subscription = event.data.object;
@@ -428,110 +428,110 @@ app.post(
           const currentPeriodEnd = subscription.current_period_end
             ? new Date(subscription.current_period_end * 1000).toISOString()
             : null;
- 
+
           const updateData = {
-  is_pro: isActive,
-  subscription_tier: isActive ? "pro" : "free",
-  subscription_status: status,
-  plan: isActive ? plan : "free",
-  stripe_customer_id: customerId,
-  stripe_subscription_id: subscription.id,
-  current_period_end: currentPeriodEnd,
-  updated_at: new Date().toISOString(),
-};
- 
+            is_pro: isActive,
+            subscription_tier: isActive ? "pro" : "free",
+            subscription_status: status,
+            plan: isActive ? plan : "free",
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscription.id,
+            current_period_end: currentPeriodEnd,
+            updated_at: new Date().toISOString(),
+          };
+
           const updated = await updateProfileByUserIdOrEmail({
             userId,
             email: customerEmail,
             updateData,
           });
- 
+
           if (!updated && customerId) {
             await supabase
               .from("profiles")
               .update(updateData)
               .eq("stripe_customer_id", customerId);
           }
- 
+
           console.log("Subscription synced:", customerId, status);
           break;
         }
- 
+
         case "customer.subscription.deleted": {
           const subscription = event.data.object;
           const customerId = subscription.customer;
           const userId = subscription.metadata?.userId || "";
           const customerEmail = subscription.metadata?.userEmail || "";
- 
+
           const updateData = {
-  is_pro: false,
-  subscription_tier: "free",
-  subscription_status: "cancelled",
-  plan: "free",
-  updated_at: new Date().toISOString(),
-};
- 
+            is_pro: false,
+            subscription_tier: "free",
+            subscription_status: "cancelled",
+            plan: "free",
+            updated_at: new Date().toISOString(),
+          };
+
           const updated = await updateProfileByUserIdOrEmail({
             userId,
             email: customerEmail,
             updateData,
           });
- 
+
           if (!updated && customerId) {
             await supabase
               .from("profiles")
               .update(updateData)
               .eq("stripe_customer_id", customerId);
           }
- 
+
           await createNotification({
             userId,
             title: "Subscription Cancelled",
             message: "Your ArtBoost AI Pro subscription has been cancelled.",
             type: "warning",
           });
- 
+
           console.log("Subscription cancelled:", customerId);
           break;
         }
- 
+
         case "invoice.payment_succeeded": {
           const invoice = event.data.object;
- 
+
           if (invoice.customer_email) {
             await syncStripeSubscriptionForUser({
               userId: "",
               email: invoice.customer_email,
             });
           }
- 
+
           console.log("Invoice payment succeeded:", invoice.customer);
           break;
         }
- 
+
         case "invoice.payment_failed": {
           const invoice = event.data.object;
           const customerId = invoice.customer;
- 
+
           await supabase
-  .from("profiles")
-  .update({
-    is_pro: false,
-    subscription_tier: "free",
-    subscription_status: "payment_failed",
-    plan: "free",
-    updated_at: new Date().toISOString(),
-  })
-  .eq("stripe_customer_id", customerId);
- 
+            .from("profiles")
+            .update({
+              is_pro: false,
+              subscription_tier: "free",
+              subscription_status: "payment_failed",
+              plan: "free",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_customer_id", customerId);
+
           console.log("Payment failed:", customerId);
           break;
         }
- 
+
         default:
           console.log(`Unhandled event type: ${event.type}`);
       }
- 
+
       res.json({ received: true });
     } catch (err) {
       console.log("Webhook processing error:", err.message);
@@ -541,14 +541,16 @@ app.post(
     }
   }
 );
- 
+
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
- 
+app.use("/products", productRoutes);
+app.use("/stores", storeRoutes);
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
- 
+
 app.get("/", (req, res) => {
   res.send("ArtBoost AI backend is running.");
 });
@@ -593,9 +595,9 @@ app.get("/support", (req, res) => {
 </html>
 `);
 });
- 
+
 app.get("/delete-user-data", (req, res) => {
- 
+
   res.send(`
  
   <html>
@@ -639,19 +641,19 @@ app.get("/delete-user-data", (req, res) => {
   </html>
  
   `);
- 
+
 });
- 
- app.post("/notifications/create", async (req, res) => {
+
+app.post("/notifications/create", async (req, res) => {
   try {
     const { userId, title, message, type } = req.body;
- 
+
     if (!title || !message) {
       return res.status(400).json({
         error: "Missing title or message.",
       });
     }
- 
+
     const { data, error } = await supabase
       .from("notifications")
       .insert({
@@ -663,14 +665,14 @@ app.get("/delete-user-data", (req, res) => {
       })
       .select()
       .single();
- 
+
     if (error) {
       return res.status(500).json({
         error: "Failed to create notification.",
         details: error.message,
       });
     }
- 
+
     res.json({
       success: true,
       notification: data,
@@ -682,29 +684,29 @@ app.get("/delete-user-data", (req, res) => {
     });
   }
 });
- 
+
 app.get("/notifications/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
- 
+
     let query = supabase
       .from("notifications")
       .select("*")
       .order("created_at", { ascending: false });
- 
+
     if (userId && userId !== "all") {
       query = query.eq("user_id", userId);
     }
- 
+
     const { data, error } = await query;
- 
+
     if (error) {
       return res.status(500).json({
         error: "Failed to load notifications.",
         details: error.message,
       });
     }
- 
+
     res.json({
       notifications: data || [],
     });
@@ -715,25 +717,25 @@ app.get("/notifications/:userId", async (req, res) => {
     });
   }
 });
- 
+
 app.patch("/notifications/read/:id", async (req, res) => {
   try {
     const { id } = req.params;
- 
+
     const { error } = await supabase
       .from("notifications")
       .update({
         unread: false,
       })
       .eq("id", id);
- 
+
     if (error) {
       return res.status(500).json({
         error: "Failed to mark notification as read.",
         details: error.message,
       });
     }
- 
+
     res.json({
       success: true,
     });
@@ -744,28 +746,28 @@ app.patch("/notifications/read/:id", async (req, res) => {
     });
   }
 });
- 
+
 app.patch("/notifications/read-all/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
- 
+
     let query = supabase.from("notifications").update({
       unread: false,
     });
- 
+
     if (userId && userId !== "all") {
       query = query.eq("user_id", userId);
     }
- 
+
     const { error } = await query;
- 
+
     if (error) {
       return res.status(500).json({
         error: "Failed to mark notifications as read.",
         details: error.message,
       });
     }
- 
+
     res.json({
       success: true,
     });
@@ -776,7 +778,7 @@ app.patch("/notifications/read-all/:userId", async (req, res) => {
     });
   }
 });
- 
+
 app.get("/analytics", async (req, res) => {
   try {
     const { userId } = req.query;
@@ -899,12 +901,12 @@ app.get("/analytics", async (req, res) => {
     });
   }
 });
- 
+
 app.get("/health", async (req, res) => {
   const { count } = await supabase
     .from("scheduled_campaigns")
     .select("*", { count: "exact", head: true });
- 
+
   res.json({
     status: "ok",
     pinterestApiBase: PINTEREST_API_BASE,
@@ -917,36 +919,36 @@ app.get("/health", async (req, res) => {
     databaseScheduling: true,
   });
 });
- 
+
 app.post("/create-checkout-session", async (req, res) => {
   try {
     const { plan, userEmail, userId } = req.body;
- 
+
     if (!userEmail || !userId) {
       return res.status(400).json({
         error: "Missing logged-in user information.",
       });
     }
- 
+
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("free_months")
       .eq("id", userId)
       .single();
- 
+
     if (profileError) {
       return res.status(500).json({
         error: "Unable to check free month balance.",
         details: profileError.message,
       });
     }
- 
+
     const freeMonths = profile?.free_months || 0;
- 
+
     if (freeMonths > 0) {
       const periodEnd = new Date();
       periodEnd.setDate(periodEnd.getDate() + 30);
- 
+
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
@@ -959,39 +961,39 @@ app.post("/create-checkout-session", async (req, res) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
- 
+
       if (updateError) {
         return res.status(500).json({
           error: "Failed to activate free month.",
           details: updateError.message,
         });
       }
- 
+
       await createNotification({
         userId,
         title: "Free Month Activated",
         message: "Your referral reward was used to activate 1 free month of ArtBoost AI Pro.",
         type: "success",
       });
- 
+
       return res.json({
         success: true,
         usedFreeMonth: true,
         message: "Free month activated.",
       });
     }
- 
+
     const priceId =
       plan === "yearly"
         ? process.env.STRIPE_YEARLY_PRICE_ID
         : process.env.STRIPE_MONTHLY_PRICE_ID;
- 
+
     if (!priceId) {
       return res.status(400).json({
         error: "Missing Stripe price ID for selected plan.",
       });
     }
- 
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
@@ -1019,7 +1021,7 @@ app.post("/create-checkout-session", async (req, res) => {
         userId,
       },
     });
- 
+
     res.json({
       success: true,
       url: session.url,
@@ -1032,22 +1034,22 @@ app.post("/create-checkout-session", async (req, res) => {
     });
   }
 });
- 
+
 app.post("/sync-subscription", async (req, res) => {
   try {
     const { userId, email } = req.body;
- 
+
     if (!email) {
       return res.status(400).json({
         error: "Missing email.",
       });
     }
- 
+
     const result = await syncStripeSubscriptionForUser({
       userId,
       email,
     });
- 
+
     res.json({
       success: true,
       ...result,
@@ -1060,37 +1062,37 @@ app.post("/sync-subscription", async (req, res) => {
     });
   }
 });
- 
+
 app.post("/apply-referral", async (req, res) => {
   try {
     const { userId, referralCode } = req.body;
- 
+
     if (!userId || !referralCode) {
       return res.status(400).json({
         error: "Missing userId or referral code.",
       });
     }
- 
+
     const cleanCode = String(referralCode).trim().toUpperCase();
- 
+
     const { data: userProfile, error: userError } = await supabase
       .from("profiles")
       .select("id, referral_code, referral_used")
       .eq("id", userId)
       .single();
- 
+
     if (userError || !userProfile) {
       return res.status(404).json({
         error: "User profile not found.",
       });
     }
- 
+
     if (userProfile.referral_used) {
       return res.status(400).json({
         error: "A referral code has already been used on this account.",
       });
     }
- 
+
     if (
       userProfile.referral_code &&
       userProfile.referral_code.toUpperCase() === cleanCode
@@ -1099,19 +1101,19 @@ app.post("/apply-referral", async (req, res) => {
         error: "You cannot use your own referral code.",
       });
     }
- 
+
     const { data: referrerProfile, error: referrerError } = await supabase
       .from("profiles")
       .select("id, referral_code, referral_count, free_months")
       .eq("referral_code", cleanCode)
       .single();
- 
+
     if (referrerError || !referrerProfile) {
       return res.status(404).json({
         error: "Referral code not found.",
       });
     }
- 
+
     await supabase
       .from("profiles")
       .update({
@@ -1121,52 +1123,52 @@ app.post("/apply-referral", async (req, res) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
- 
+
     await supabase
-  .from("profiles")
-  .update({
-    referral_count: (referrerProfile.referral_count || 0) + 1,
-    free_months: Math.min(
-      (referrerProfile.free_months || 0) + 1,
-      3
-    ),
-    updated_at: new Date().toISOString(),
-  })
-  .eq("id", referrerProfile.id);
- 
+      .from("profiles")
+      .update({
+        referral_count: (referrerProfile.referral_count || 0) + 1,
+        free_months: Math.min(
+          (referrerProfile.free_months || 0) + 1,
+          3
+        ),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", referrerProfile.id);
+
     await createNotification({
       userId,
       title: "Referral Applied",
       message: "Your referral code was applied successfully. You earned 1 free month.",
       type: "success",
     });
- 
+
     await createNotification({
       userId: referrerProfile.id,
       title: "Referral Reward Earned",
       message: "Someone used your referral code. You earned 1 free month.",
       type: "success",
     });
- 
+
     res.json({
       success: true,
       message: "Referral applied successfully.",
     });
   } catch (err) {
     console.error("Apply referral error:", err);
- 
+
     res.status(500).json({
       error: "Failed to apply referral code.",
       details: err.message,
     });
   }
 });
- 
+
 app.post("/create-billing-portal", async (req, res) => {
   try {
     const { customerId, email, userId } = req.body;
     let finalCustomerId = customerId;
- 
+
     if (!finalCustomerId && email) {
       const syncResult = await syncStripeSubscriptionForUser({
         userId,
@@ -1174,18 +1176,18 @@ app.post("/create-billing-portal", async (req, res) => {
       });
       finalCustomerId = syncResult.customerId;
     }
- 
+
     if (!finalCustomerId) {
       return res.status(400).json({
         error: "Missing Stripe customer ID.",
       });
     }
- 
+
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: finalCustomerId,
       return_url: "https://artboost-ai.onrender.com",
     });
- 
+
     res.json({
       success: true,
       url: portalSession.url,
@@ -1198,7 +1200,7 @@ app.post("/create-billing-portal", async (req, res) => {
     });
   }
 });
- 
+
 app.get("/stripe-success", (req, res) => {
   res.send(`
     <html>
@@ -1210,7 +1212,7 @@ app.get("/stripe-success", (req, res) => {
     </html>
   `);
 });
- 
+
 app.get("/stripe-cancel", (req, res) => {
   res.send(`
     <html>
@@ -1222,12 +1224,12 @@ app.get("/stripe-cancel", (req, res) => {
     </html>
   `);
 });
- 
+
 app.get("/auth/pinterest", (req, res) => {
   if (!PINTEREST_CLIENT_ID) {
     return res.status(500).send("Missing PINTEREST_CLIENT_ID.");
   }
- 
+
   const scopes = [
     "boards:read",
     "boards:write",
@@ -1235,34 +1237,34 @@ app.get("/auth/pinterest", (req, res) => {
     "pins:write",
     "user_accounts:read",
   ].join(",");
- 
+
   const authUrl = new URL("https://www.pinterest.com/oauth/");
   authUrl.searchParams.set("client_id", PINTEREST_CLIENT_ID);
   authUrl.searchParams.set("redirect_uri", PINTEREST_REDIRECT_URI);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("scope", scopes);
   authUrl.searchParams.set("state", "artboost-pinterest-connect");
- 
+
   res.redirect(authUrl.toString());
 });
- 
+
 let facebookConnection = {
   connected: false,
   token: null,
   expiresIn: null,
   connectedAt: null,
 };
- 
+
 async function saveFacebookConnection(tokenData) {
   const connectedAt = new Date().toISOString();
- 
+
   facebookConnection = {
     connected: true,
     token: tokenData.access_token,
     expiresIn: tokenData.expires_in || null,
     connectedAt,
   };
- 
+
   const { error } = await supabase
     .from("social_connections")
     .upsert(
@@ -1276,33 +1278,33 @@ async function saveFacebookConnection(tokenData) {
       },
       { onConflict: "platform" }
     );
- 
+
   if (error) {
     console.log("Facebook token save failed:", error.message);
   } else {
     console.log("Facebook token saved to Supabase");
   }
 }
- 
+
 async function loadFacebookConnection() {
   const { data, error } = await supabase
     .from("social_connections")
     .select("*")
     .eq("platform", "facebook")
     .maybeSingle();
- 
+
   if (error || !data?.access_token) {
     console.log("No saved Facebook connection found.");
     return;
   }
- 
+
   facebookConnection = {
     connected: true,
     token: data.access_token,
     expiresIn: data.expires_in || null,
     connectedAt: data.connected_at || null,
   };
- 
+
   console.log("Facebook saved connection loaded: true");
 }
 
@@ -1321,15 +1323,15 @@ async function savePinterestConnection(tokenData) {
 
   const expiresAt = expiresIn
     ? new Date(
-        connectedAt.getTime() + expiresIn * 1000
-      ).toISOString()
+      connectedAt.getTime() + expiresIn * 1000
+    ).toISOString()
     : null;
 
   const refreshTokenExpiresAt = refreshTokenExpiresIn
     ? new Date(
-        connectedAt.getTime() +
-          refreshTokenExpiresIn * 1000
-      ).toISOString()
+      connectedAt.getTime() +
+      refreshTokenExpiresIn * 1000
+    ).toISOString()
     : null;
 
   const connectionRecord = {
@@ -1429,26 +1431,26 @@ async function loadPinterestConnection() {
 
   console.log("Pinterest connection loaded from Supabase.");
 }
- 
+
 app.get("/auth/facebook", (req, res) => {
- 
+
   const APP_ID =
     process.env.FACEBOOK_APP_ID;
- 
+
   const REDIRECT_URI =
     "https://artboost-ai.onrender.com/auth/facebook/callback";
- 
+
   const url =
     `https://www.facebook.com/v23.0/dialog/oauth` +
     `?client_id=${APP_ID}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
     `&scope=email,pages_read_engagement,pages_show_list,pages_manage_posts` +
     `&response_type=code`;
-console.log("FACEBOOK ROUTE VERSION 2:", url);
+  console.log("FACEBOOK ROUTE VERSION 2:", url);
   res.redirect(url);
- 
+
 });
- 
+
 // ================================
 // Instagram Status/Test Routes
 // ================================
@@ -1468,29 +1470,29 @@ app.get("/x/status", (req, res) => {
     hasAccessToken: !!process.env.X_ACCESS_TOKEN,
     hasAccessTokenSecret: !!process.env.X_ACCESS_TOKEN_SECRET,
     message: "X credentials check complete.",
-postTestRouteAdded: true,
+    postTestRouteAdded: true,
   });
 });
- 
+
 app.post("/x/post", async (req, res) => {
   try {
- const { title, description, productLink, imageUrl, message } = req.body;
- const finalTitle = title || "";
- const finalDescription = description || message || "";
- 
+    const { title, description, productLink, imageUrl, message } = req.body;
+    const finalTitle = title || "";
+    const finalDescription = description || message || "";
+
     if (!finalTitle && !finalDescription) {
-    return res.status(400).json({
-    error: "Missing X post title or description.",
-    });
+      return res.status(400).json({
+        error: "Missing X post title or description.",
+      });
     }
- 
- const result = await publishXPost({
+
+    const result = await publishXPost({
       title: finalTitle,
       description: finalDescription,
       productLink,
       imageUrl,
     });
- 
+
     res.json({
       success: true,
       platform: "x",
@@ -1498,14 +1500,14 @@ app.post("/x/post", async (req, res) => {
     });
   } catch (err) {
     console.error("X manual post error:", err);
- 
+
     res.status(500).json({
       error: "X manual post failed.",
       details: err.message,
     });
   }
 });
- 
+
 app.get("/will-test", (req, res) => {
   res.json({
     works: true,
@@ -1514,7 +1516,7 @@ app.get("/will-test", (req, res) => {
     time: new Date().toISOString()
   });
 });
- 
+
 app.get("/x/post-test", async (req, res) => {
   try {
     const response = await fetch(
@@ -1526,9 +1528,9 @@ app.get("/x/post-test", async (req, res) => {
         },
       }
     );
- 
+
     const data = await response.text();
- 
+
     res.json({
       status: response.status,
       data,
@@ -1540,10 +1542,10 @@ app.get("/x/post-test", async (req, res) => {
     });
   }
 });
-  app.get("/instagram/status", (req, res) => {
+app.get("/instagram/status", (req, res) => {
   const hasToken = !!process.env.INSTAGRAM_ACCESS_TOKEN;
   const hasUserId = !!process.env.INSTAGRAM_USER_ID;
- 
+
   res.json({
     connected: hasToken && hasUserId,
     hasToken,
@@ -1555,25 +1557,25 @@ app.get("/x/post-test", async (req, res) => {
         : "Missing Instagram environment variables.",
   });
 });
- 
+
 app.get("/instagram/test", async (req, res) => {
   try {
     const token = process.env.INSTAGRAM_ACCESS_TOKEN;
- 
+
     if (!token) {
       return res.status(400).json({ error: "Missing INSTAGRAM_ACCESS_TOKEN" });
     }
- 
+
     const response = await fetch(
       `https://graph.instagram.com/me?fields=id,username,account_type&access_token=${encodeURIComponent(token)}`
     );
- 
+
     const data = await response.json();
- 
+
     if (!response.ok) {
       return res.status(response.status).json(data);
     }
- 
+
     res.json({
       ok: true,
       instagram: data,
@@ -1586,74 +1588,74 @@ app.get("/instagram/test", async (req, res) => {
     });
   }
 });
- 
+
 app.get("/facebook/debug-auth-url", (req, res) => {
- 
+
   const APP_ID =
     process.env.FACEBOOK_APP_ID;
- 
+
   const REDIRECT_URI =
     "https://artboost-ai.onrender.com/auth/facebook/callback";
- 
+
   const url =
     `https://www.facebook.com/v23.0/dialog/oauth` +
     `?client_id=${APP_ID}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
     `&scope=email,pages_read_engagement,pages_show_list,pages_manage_posts` +
     `&response_type=code`;
- 
+
   res.json({ url });
- 
+
 });
- 
+
 app.get("/auth/facebook/callback", async (req, res) => {
- 
+
   try {
- 
+
     const code =
       req.query.code;
- 
+
     if (!code) {
- 
+
       return res
         .status(400)
         .send(
           "Missing Facebook authorization code"
         );
- 
+
     }
- 
+
     const tokenResponse =
       await fetch(
         `https://graph.facebook.com/v23.0/oauth/access_token?client_id=${process.env.FACEBOOK_APP_ID}&redirect_uri=https://artboost-ai.onrender.com/auth/facebook/callback&client_secret=${process.env.FACEBOOK_APP_SECRET}&code=${code}`
       );
- 
+
     const tokenData =
       await tokenResponse.json();
- 
+
     if (!tokenData.access_token) {
- 
+
       console.log(
         "Facebook Token Error:",
         tokenData
       );
- 
+
       return res
         .status(400)
         .send(
           "Facebook token exchange failed."
         );
- 
+
     }
- 
+
     await saveFacebookConnection(tokenData);
- 
+
     console.log("Facebook token received and save attempted");
- 
+
     console.log(
       "Facebook Connected Successfully"
     );
- 
+
     res.send(`
       <html>
         <body style="font-family:Arial;padding:40px;">
@@ -1662,158 +1664,158 @@ app.get("/auth/facebook/callback", async (req, res) => {
         </body>
       </html>
     `);
- 
+
   }
- 
+
   catch (err) {
- 
+
     console.error(err);
- 
+
     res
       .status(500)
       .send(
         "Facebook connection failed"
       );
- 
+
   }
- 
+
 });
- 
+
 app.get("/facebook/pages", async (req, res) => {
- 
+
   try {
- 
+
     if (!facebookConnection.token) {
- 
+
       return res
         .status(400)
         .json({
- 
+
           error:
             "Missing Facebook access token"
- 
+
         });
- 
+
     }
- 
+
     const response =
       await fetch(
- 
+
         `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
- 
+
       );
- 
+
     const data =
-  await response.json();
- 
-res.json(data);
- 
+      await response.json();
+
+    res.json(data);
+
   }
- 
+
   catch (err) {
- 
+
     res
       .status(500)
       .json({
- 
+
         error:
           err.message
- 
+
       });
- 
+
   }
- 
+
 });
- 
+
 app.get("/facebook/permissions", async (req, res) => {
   if (!facebookConnection.token) {
     return res.status(400).json({ error: "Facebook not connected" });
   }
- 
+
   const response = await fetch(
     `https://graph.facebook.com/v23.0/me/permissions?access_token=${facebookConnection.token}`
   );
- 
+
   const data = await response.json();
   res.json(data);
 });
- 
-app.post("/facebook/post", async (req, res) => {
- 
-  try {
- 
-    const {
-  message,
-  imageUrl,
-  pageId,
-  productLink
-} = req.body;
 
-const finalMessage = [
-  message,
-  productLink
-].filter(Boolean).join("\n\n");
- 
+app.post("/facebook/post", async (req, res) => {
+
+  try {
+
+    const {
+      message,
+      imageUrl,
+      pageId,
+      productLink
+    } = req.body;
+
+    const finalMessage = [
+      message,
+      productLink
+    ].filter(Boolean).join("\n\n");
+
     if (!facebookConnection.token) {
- 
+
       return res.status(400).json({
         error: "Facebook not connected"
       });
- 
+
     }
- 
+
     const pagesResponse =
       await fetch(
         `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
       );
- 
+
     const pagesData =
       await pagesResponse.json();
- 
+
     if (!pagesData.data || !pagesData.data.length) {
- 
+
       return res.status(400).json({
         error: "No Facebook Pages found"
       });
- 
+
     }
- 
+
     const page =
       pageId
         ? pagesData.data.find(
-            (p) => p.id === pageId
-          )
+          (p) => p.id === pageId
+        )
         : pagesData.data[0];
- 
+
     if (!page) {
- 
+
       return res.status(400).json({
         error: "Selected Facebook Page not found"
       });
- 
+
     }
- 
+
     let postUrl =
       `https://graph.facebook.com/v23.0/${page.id}/feed`;
- 
+
     let body = {
       message: finalMessage,
-access_token: page.access_token,
+      access_token: page.access_token,
     };
- 
+
     if (imageUrl) {
- 
+
       postUrl =
         `https://graph.facebook.com/v23.0/${page.id}/photos`;
- 
+
       body = {
         url: imageUrl,
         caption: finalMessage,
-access_token: page.access_token,
+        access_token: page.access_token,
       };
- 
+
     }
- 
+
     const postResponse =
       await fetch(postUrl, {
         method: "POST",
@@ -1822,61 +1824,61 @@ access_token: page.access_token,
         },
         body: JSON.stringify(body),
       });
- 
+
     const postData =
       await postResponse.json();
- 
+
     if (postData.error) {
- 
+
       console.log(
         "Facebook Post Error:",
         postData.error
       );
- 
+
       return res.status(500).json({
         error: postData.error,
       });
- 
+
     }
- 
+
     res.json(postData);
- 
+
   }
- 
+
   catch (err) {
- 
+
     console.error(err);
- 
+
     res.status(500).json({
       error: err.message,
     });
- 
+
   }
- 
+
 });
- 
+
 // ================================
 // Instagram Publish Route
 // ================================
 app.post("/instagram/post", async (req, res) => {
   try {
     const { message, imageUrl } = req.body;
- 
+
     const instagramUserId = process.env.INSTAGRAM_USER_ID;
     const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
- 
+
     if (!instagramUserId || !accessToken) {
       return res.status(400).json({
         error: "Instagram not configured",
       });
     }
- 
+
     if (!imageUrl) {
       return res.status(400).json({
         error: "Instagram requires an imageUrl to publish.",
       });
     }
- 
+
     const createContainerResponse = await fetch(
       `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
       {
@@ -1891,21 +1893,21 @@ app.post("/instagram/post", async (req, res) => {
         }),
       }
     );
- 
+
     const createContainerData = await createContainerResponse.json();
- 
+
     if (createContainerData.error) {
       console.log("Instagram Container Error:", createContainerData.error);
- 
+
       return res.status(500).json({
         error: createContainerData.error,
       });
     }
- 
+
     const creationId = createContainerData.id;
- 
+
     await new Promise((resolve) => setTimeout(resolve, 8000));
- 
+
     const publishResponse = await fetch(
       `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
       {
@@ -1919,17 +1921,17 @@ app.post("/instagram/post", async (req, res) => {
         }),
       }
     );
- 
+
     const publishData = await publishResponse.json();
- 
+
     if (publishData.error) {
       console.log("Instagram Publish Error:", publishData.error);
- 
+
       return res.status(500).json({
         error: publishData.error,
       });
     }
- 
+
     res.json({
       success: true,
       platform: "instagram",
@@ -1938,7 +1940,7 @@ app.post("/instagram/post", async (req, res) => {
     });
   } catch (err) {
     console.error("Instagram post error:", err);
- 
+
     res.status(500).json({
       error: err.message,
     });
@@ -2405,11 +2407,11 @@ app.get("/shopify/status", async (req, res) => {
     res.json({
       configured: Boolean(
         SHOPIFY_CLIENT_ID &&
-          SHOPIFY_CLIENT_SECRET
+        SHOPIFY_CLIENT_SECRET
       ),
       connected: Boolean(
         data?.connected &&
-          data?.shop_domain
+        data?.shop_domain
       ),
       shopDomain:
         data?.shop_domain || null,
@@ -2424,7 +2426,7 @@ app.get("/shopify/status", async (req, res) => {
     });
   }
 });
- 
+
 app.get("/shopify/products", async (req, res) => {
   try {
     const { userId } = req.query;
@@ -2585,7 +2587,7 @@ app.get("/shopify/products", async (req, res) => {
 
         status:
           String(node.status || "").toLowerCase() ===
-          "active"
+            "active"
             ? "active"
             : "inactive",
 
@@ -2841,9 +2843,8 @@ app.get("/stores", async (req, res) => {
     const productCounts = {};
 
     for (const product of productRows || []) {
-      const key = `${product.store_type || ""}::${
-        product.store_name || ""
-      }`;
+      const key = `${product.store_type || ""}::${product.store_name || ""
+        }`;
 
       productCounts[key] =
         (productCounts[key] || 0) + 1;
@@ -2895,32 +2896,32 @@ app.get("/facebook/test", (req, res) => {
     hasToken: Boolean(facebookConnection.token),
   });
 });
- 
+
 app.post("/disconnect-platform", async (req, res) => {
   try {
     const { platform } = req.body;
- 
+
     if (!platform) {
       return res.status(400).json({
         success: false,
         error: "Missing platform.",
       });
     }
- 
+
     const normalizedPlatform = String(platform).trim().toLowerCase();
- 
+
     const { error } = await supabase
       .from("social_connections")
       .delete()
       .eq("platform", normalizedPlatform);
- 
+
     if (error) {
       return res.status(500).json({
         success: false,
         error: error.message,
       });
     }
- 
+
     if (normalizedPlatform === "facebook") {
       facebookConnection = {
         connected: false,
@@ -2929,34 +2930,34 @@ app.post("/disconnect-platform", async (req, res) => {
         connectedAt: null,
       };
     }
- 
+
     if (normalizedPlatform === "pinterest") {
-  pinterestConnection = {
-    connected: false,
-    token: null,
-    refreshToken: null,
-    expiresIn: null,
-    expiresAt: null,
-    refreshTokenExpiresIn: null,
-    refreshTokenExpiresAt: null,
-    connectedAt: null,
-  };
-}
- 
+      pinterestConnection = {
+        connected: false,
+        token: null,
+        refreshToken: null,
+        expiresIn: null,
+        expiresAt: null,
+        refreshTokenExpiresIn: null,
+        refreshTokenExpiresAt: null,
+        connectedAt: null,
+      };
+    }
+
     res.json({
       success: true,
       platform: normalizedPlatform,
     });
   } catch (err) {
     console.error("Disconnect platform error:", err);
- 
+
     res.status(500).json({
       success: false,
       error: err.message,
     });
   }
 });
- 
+
 app.get("/x/credentials-check", (req, res) => {
   res.json({
     connected: true,
@@ -2969,23 +2970,23 @@ app.get("/x/credentials-check", (req, res) => {
     message: "X credentials check complete.",
   });
 });
- 
+
 app.get("/auth/pinterest/callback", async (req, res) => {
   try {
     const { code, state } = req.query;
- 
+
     if (!code) {
       return res.status(400).send("Missing Pinterest authorization code.");
     }
- 
+
     if (state !== "artboost-pinterest-connect") {
       return res.status(400).send("Invalid Pinterest OAuth state.");
     }
- 
+
     const basicAuth = Buffer.from(
       `${PINTEREST_CLIENT_ID}:${PINTEREST_CLIENT_SECRET}`
     ).toString("base64");
- 
+
     const tokenResponse = await fetch(`${PINTEREST_API_BASE}/v5/oauth/token`, {
       method: "POST",
       headers: {
@@ -2998,25 +2999,25 @@ app.get("/auth/pinterest/callback", async (req, res) => {
         redirect_uri: PINTEREST_REDIRECT_URI,
       }),
     });
- 
+
     const tokenData = await tokenResponse.json();
- 
+
     if (!tokenResponse.ok) {
       return res.status(500).send(`
         <h1>Pinterest Connection Failed</h1>
         <pre>${JSON.stringify(tokenData, null, 2)}</pre>
       `);
     }
- 
+
     await savePinterestConnection(tokenData);
- 
+
     await createNotification({
       userId: null,
       title: "Pinterest Connected",
       message: "Pinterest OAuth was connected successfully.",
       type: "success",
     });
- 
+
     res.send(`
       <html>
         <body style="font-family: Arial; padding: 40px;">
@@ -3033,7 +3034,7 @@ app.get("/auth/pinterest/callback", async (req, res) => {
     `);
   }
 });
- 
+
 app.get("/pinterest/status", (req, res) => {
   res.json({
     configured: Boolean(PINTEREST_CLIENT_ID && PINTEREST_CLIENT_SECRET),
@@ -3043,28 +3044,28 @@ app.get("/pinterest/status", (req, res) => {
     apiBase: PINTEREST_API_BASE,
   });
 });
- 
+
 app.get("/pinterest/boards", async (req, res) => {
   try {
     if (!pinterestConnection.connected || !pinterestConnection.token) {
       return res.status(401).json({ error: "Pinterest is not connected." });
     }
- 
+
     const boardsResponse = await fetch(`${PINTEREST_API_BASE}/v5/boards`, {
       headers: {
         Authorization: `Bearer ${pinterestConnection.token}`,
       },
     });
- 
+
     const boardsData = await boardsResponse.json();
- 
+
     if (!boardsResponse.ok) {
       return res.status(500).json({
         error: "Failed to fetch boards.",
         details: boardsData,
       });
     }
- 
+
     res.json(boardsData);
   } catch (err) {
     res.status(500).json({
@@ -3073,7 +3074,7 @@ app.get("/pinterest/boards", async (req, res) => {
     });
   }
 });
- 
+
 async function publishPinterestPin({
   boardId,
   title,
@@ -3084,11 +3085,11 @@ async function publishPinterestPin({
   if (!pinterestConnection.connected || !pinterestConnection.token) {
     throw new Error("Pinterest is not connected.");
   }
- 
+
   if (!boardId || !imageUrl) {
     throw new Error("Missing boardId or imageUrl.");
   }
- 
+
   const pinPayload = {
     board_id: boardId,
     title: title || "ArtBoost AI Pin",
@@ -3099,7 +3100,7 @@ async function publishPinterestPin({
       url: imageUrl,
     },
   };
- 
+
   const pinResponse = await fetch(`${PINTEREST_API_BASE}/v5/pins`, {
     method: "POST",
     headers: {
@@ -3108,16 +3109,16 @@ async function publishPinterestPin({
     },
     body: JSON.stringify(pinPayload),
   });
- 
+
   const pinData = await pinResponse.json();
- 
+
   if (!pinResponse.ok) {
     throw new Error(JSON.stringify(pinData));
   }
- 
+
   return pinData;
 }
- 
+
 async function publishFacebookPost({
   title,
   description,
@@ -3130,27 +3131,27 @@ async function publishFacebookPost({
   if (!facebookConnection.token) {
     throw new Error("Facebook not connected");
   }
- 
+
   if (!pageId) {
     throw new Error("Missing Facebook pageId for scheduled post");
   }
- 
+
   const pagesResponse = await fetch(
     `https://graph.facebook.com/v23.0/me/accounts?access_token=${facebookConnection.token}`
   );
- 
+
   const pagesData = await pagesResponse.json();
- 
+
   if (!pagesData.data || !pagesData.data.length) {
     throw new Error("No Facebook Pages found");
   }
- 
+
   const page = pagesData.data.find((p) => p.id === pageId);
- 
+
   if (!page) {
     throw new Error("Selected Facebook Page not found");
   }
- 
+
   const message = `${title}
 
 ${description}
@@ -3160,7 +3161,7 @@ ${cta || ""}
 ${hashtags || ""}
 
 ${productLink || ""}`;
- 
+
   const response = await fetch(
     `https://graph.facebook.com/v23.0/${page.id}/photos`,
     {
@@ -3175,16 +3176,16 @@ ${productLink || ""}`;
       }),
     }
   );
- 
+
   const data = await response.json();
- 
+
   if (data.error) {
     throw new Error(data.error.message);
   }
- 
+
   return data;
 }
- 
+
 async function publishInstagramPost({
   title,
   description,
@@ -3194,21 +3195,21 @@ async function publishInstagramPost({
 }) {
   const instagramUserId = process.env.INSTAGRAM_USER_ID;
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
- 
+
   if (!instagramUserId || !accessToken) {
     throw new Error("Instagram not configured");
   }
- 
+
   if (!imageUrl) {
     throw new Error("Instagram requires an imageUrl to publish.");
   }
- 
+
   const message = `${description}
  
 ${cta || "Tap the link in bio to grab yours today."}
  
 ${hashtags || ""}`;
- 
+
   const createContainerResponse = await fetch(
     `https://graph.instagram.com/v23.0/${instagramUserId}/media`,
     {
@@ -3221,15 +3222,15 @@ ${hashtags || ""}`;
       }),
     }
   );
- 
+
   const createContainerData = await createContainerResponse.json();
- 
+
   if (createContainerData.error) {
     throw new Error(createContainerData.error.message);
   }
- 
+
   await new Promise((resolve) => setTimeout(resolve, 8000));
- 
+
   const publishResponse = await fetch(
     `https://graph.instagram.com/v23.0/${instagramUserId}/media_publish`,
     {
@@ -3241,53 +3242,53 @@ ${hashtags || ""}`;
       }),
     }
   );
- 
+
   const publishData = await publishResponse.json();
- 
+
   if (publishData.error) {
     throw new Error(publishData.error.message);
   }
- 
+
   return publishData;
 }
- 
+
 async function publishXPost({ title, description, productLink, imageUrl }) {
   const finalDescription = description || "";
- 
+
   const extractedLink =
     finalDescription.match(/https?:\/\/[^\s]+|redbubble\.com\/[^\s]+/i)?.[0] || "";
- 
+
   const linkText = productLink || extractedLink || "";
- 
+
   const cleanedDescription = finalDescription
     .replace(/https?:\/\/[^\s]+|redbubble\.com\/[^\s]+/gi, "")
     .trim();
- 
+
   let message = [title, cleanedDescription, linkText]
-  .filter(Boolean)
-  .join("\n\n")
-  .trim();
- 
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+
   // Prevent duplicate tweet errors
-const variations = [
-  "🔥 Available now",
-  "⚡ Grab yours today",
-  "🏁 Built for hot rod fans",
-  "💀 Limited artwork",
-  "🚀 Check it out",
-  "🐀 Wild rat rod energy",
-];
- 
-message +=
-  "\n\n" +
-  variations[Math.floor(Math.random() * variations.length)];
- 
+  const variations = [
+    "🔥 Available now",
+    "⚡ Grab yours today",
+    "🏁 Built for hot rod fans",
+    "💀 Limited artwork",
+    "🚀 Check it out",
+    "🐀 Wild rat rod energy",
+  ];
+
+  message +=
+    "\n\n" +
+    variations[Math.floor(Math.random() * variations.length)];
+
   const hasProductLink = Boolean(linkText);
-  
+
   if (!message) {
     throw new Error("Missing X post message");
   }
- 
+
   const oauth = OAuth({
     consumer: {
       key: process.env.X_API_KEY,
@@ -3298,37 +3299,37 @@ message +=
       return CryptoJS.HmacSHA1(baseString, key).toString(CryptoJS.enc.Base64);
     },
   });
- 
+
   const token = {
     key: process.env.X_ACCESS_TOKEN,
     secret: process.env.X_ACCESS_TOKEN_SECRET,
   };
- 
+
   let mediaId = null;
-console.log("X PRODUCT LINK:", productLink);
-console.log("X HAS PRODUCT LINK:", Boolean(productLink));
-console.log("X HAS IMAGE URL:", Boolean(imageUrl));
-console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
- 
-if (imageUrl && !hasProductLink) {
+  console.log("X PRODUCT LINK:", productLink);
+  console.log("X HAS PRODUCT LINK:", Boolean(productLink));
+  console.log("X HAS IMAGE URL:", Boolean(imageUrl));
+  console.log("X WILL UPLOAD MEDIA:", Boolean(imageUrl && !hasProductLink));
+
+  if (imageUrl && !hasProductLink) {
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
     const uploadRequestData = {
       url: "https://upload.twitter.com/1.1/media/upload.json",
       method: "POST",
     };
- 
+
     const uploadAuthHeader = oauth.toHeader(
       oauth.authorize(uploadRequestData, token)
     );
- 
+
     const formData = new FormData();
     formData.append(
       "media",
       new Blob([imageBuffer]),
       "artboost-image.jpg"
     );
- 
+
     const uploadResponse = await fetch(uploadRequestData.url, {
       method: "POST",
       headers: {
@@ -3336,52 +3337,52 @@ if (imageUrl && !hasProductLink) {
       },
       body: formData,
     });
- 
+
     const uploadData = await uploadResponse.json();
- 
+
     if (!uploadResponse.ok || !uploadData.media_id_string) {
       console.log("X Media Upload Error:", uploadData);
       throw new Error("X image upload failed");
     }
- 
+
     mediaId = uploadData.media_id_string;
   }
- 
+
   const tweetRequestData = {
     url: "https://api.twitter.com/2/tweets",
     method: "POST",
   };
- 
+
   const tweetAuthHeader = oauth.toHeader(
     oauth.authorize(tweetRequestData, token)
   );
- 
+
   const tweetBody = {
     text: message,
   };
- 
+
   if (mediaId) {
     tweetBody.media = {
       media_ids: [mediaId],
     };
   }
- 
-  console.log("X MESSAGE LENGTH:", message.length);
- 
-console.log("X MESSAGE:");
-console.log(message);
- 
 
   console.log("X MESSAGE LENGTH:", message.length);
 
-console.log("X MESSAGE:");
-console.log(message);
+  console.log("X MESSAGE:");
+  console.log(message);
+
 
   console.log("X MESSAGE LENGTH:", message.length);
- 
-console.log("X MESSAGE:");
-console.log(message);
- 
+
+  console.log("X MESSAGE:");
+  console.log(message);
+
+  console.log("X MESSAGE LENGTH:", message.length);
+
+  console.log("X MESSAGE:");
+  console.log(message);
+
   const response = await fetch(tweetRequestData.url, {
     method: "POST",
     headers: {
@@ -3390,21 +3391,21 @@ console.log(message);
     },
     body: JSON.stringify(tweetBody),
   });
- 
+
   const data = await response.json();
- 
+
   if (!response.ok) {
     console.log("X Scheduled Post Error:", data);
     throw new Error(JSON.stringify(data));
   }
- 
+
   return data;
 }
- 
+
 app.post("/pinterest/create-pin", async (req, res) => {
   try {
     const { userId, boardId, title, description, link, imageUrl } = req.body;
- 
+
     const pinData = await publishPinterestPin({
       boardId,
       title,
@@ -3412,35 +3413,35 @@ app.post("/pinterest/create-pin", async (req, res) => {
       link,
       imageUrl,
     });
- 
+
     await createNotification({
       userId,
       title: "Pinterest Pin Published",
       message: `Your campaign "${title || "Untitled Campaign"}" was posted to Pinterest.`,
       type: "success",
     });
- 
+
     res.json({
       success: true,
       pin: pinData,
     });
   } catch (err) {
     const { userId, title } = req.body || {};
- 
+
     await createNotification({
       userId,
       title: "Pinterest Post Failed",
       message: `Pinterest could not publish "${title || "Untitled Campaign"}". ${err.message}`,
       type: "error",
     });
- 
+
     res.status(500).json({
       error: "Pinterest pin creation failed.",
       details: err.message,
     });
   }
 });
- 
+
 app.post("/schedule-campaign", async (req, res) => {
   try {
     const {
@@ -3460,10 +3461,10 @@ app.post("/schedule-campaign", async (req, res) => {
       nextRunAt,
       repeatUntil,
     } = req.body;
- 
+
     const normalizedPlatform = String(platform || "Pinterest").trim();
     const platformKey = normalizedPlatform.toLowerCase();
- 
+
     console.log("SCHEDULE REQUEST RECEIVED:", {
       userId,
       platform: normalizedPlatform,
@@ -3476,51 +3477,51 @@ app.post("/schedule-campaign", async (req, res) => {
       hasHashtags: Boolean(hashtags),
       hasCta: Boolean(cta),
     });
- 
+
     if (!userId) {
       return res.status(400).json({
         success: false,
         error: "Missing userId.",
       });
     }
- 
+
     if (!title || !description || !publishAt) {
       return res.status(400).json({
         success: false,
         error: "Missing title, description, or publishAt.",
       });
     }
- 
+
     if (!imageUrl) {
       return res.status(400).json({
         success: false,
         error: "Missing imageUrl.",
       });
     }
- 
+
     if (!["pinterest", "facebook", "instagram", "x"].includes(platformKey)) {
       return res.status(400).json({
         success: false,
         error: `Unsupported platform: ${normalizedPlatform}`,
       });
     }
- 
+
     if (platformKey === "pinterest" && !boardId) {
       return res.status(400).json({
         success: false,
         error: "Pinterest requires a boardId.",
       });
     }
- 
+
     if (platformKey === "facebook" && !pageId) {
       return res.status(400).json({
         success: false,
         error: "Facebook requires a pageId.",
       });
     }
- 
+
     const limitCheck = await checkCampaignLimit(userId, normalizedPlatform);
- 
+
     if (!limitCheck.allowed) {
       return res.status(403).json({
         success: false,
@@ -3528,12 +3529,12 @@ app.post("/schedule-campaign", async (req, res) => {
         error: limitCheck.reason,
       });
     }
- 
+
     const finalRepeatType = repeatType || "one_time";
- 
+
     const calculatedNextRun =
       nextRunAt || (finalRepeatType !== "one_time" ? publishAt : null);
- 
+
     const insertPayload = {
       user_id: userId,
       platform: normalizedPlatform,
@@ -3555,13 +3556,13 @@ app.post("/schedule-campaign", async (req, res) => {
       error: null,
       updated_at: new Date().toISOString(),
     };
- 
+
     const { data, error } = await supabase
       .from("scheduled_campaigns")
       .insert(insertPayload)
       .select()
       .single();
- 
+
     if (error) {
       console.log("SCHEDULE INSERT FAILED:", {
         platform: normalizedPlatform,
@@ -3571,7 +3572,7 @@ app.post("/schedule-campaign", async (req, res) => {
         code: error.code,
         payload: insertPayload,
       });
- 
+
       return res.status(500).json({
         success: false,
         error: "Failed to save scheduled campaign.",
@@ -3580,14 +3581,14 @@ app.post("/schedule-campaign", async (req, res) => {
         hint: error.hint,
       });
     }
- 
-       if (userId) {
+
+    if (userId) {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("subscription_tier, monthly_campaign_count")
         .eq("id", userId)
         .single();
- 
+
       if (!profileError && (profile?.subscription_tier || "free") === "free") {
         await supabase
           .from("profiles")
@@ -3598,27 +3599,27 @@ app.post("/schedule-campaign", async (req, res) => {
           .eq("id", userId);
       }
     }
- 
+
     await createNotification({
       userId,
       title: "Campaign Scheduled",
       message: `Your ${normalizedPlatform} campaign "${title}" was scheduled successfully.`,
       type: "success",
     });
- 
+
     console.log("SCHEDULE INSERT SUCCESS:", {
       id: data.id,
       platform: normalizedPlatform,
       title,
     });
- 
+
     res.json({
       success: true,
       campaign: mapCampaignFromDb(data),
     });
   } catch (err) {
     console.log("SCHEDULE ROUTE CRASH:", err);
- 
+
     res.status(500).json({
       success: false,
       error: "Scheduling request failed.",
@@ -3626,29 +3627,29 @@ app.post("/schedule-campaign", async (req, res) => {
     });
   }
 });
- 
+
 app.get("/scheduled-campaigns", async (req, res) => {
   try {
     const { userId } = req.query;
- 
+
     let query = supabase
       .from("scheduled_campaigns")
       .select("*")
       .order("created_at", { ascending: false });
- 
+
     if (userId) {
       query = query.eq("user_id", userId);
     }
- 
+
     const { data, error } = await query;
- 
+
     if (error) {
       return res.status(500).json({
         error: "Failed to load scheduled campaigns.",
         details: error.message,
       });
     }
- 
+
     res.json({
       campaigns: (data || []).map(mapCampaignFromDb),
     });
@@ -3659,48 +3660,48 @@ app.get("/scheduled-campaigns", async (req, res) => {
     });
   }
 });
- 
+
 app.delete("/scheduled-campaigns/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { userId } = req.query;
- 
+
     let deleteQuery = supabase
       .from("scheduled_campaigns")
       .delete()
       .eq("id", id);
- 
+
     if (userId) {
       deleteQuery = deleteQuery.eq("user_id", userId);
     }
- 
+
     const { error } = await deleteQuery;
- 
+
     if (error) {
       return res.status(500).json({
         error: "Failed to delete scheduled campaign.",
         details: error.message,
       });
     }
- 
+
     await createNotification({
       userId,
       title: "Campaign Deleted",
       message: "A scheduled campaign was deleted.",
       type: "info",
     });
- 
+
     let listQuery = supabase
       .from("scheduled_campaigns")
       .select("*")
       .order("created_at", { ascending: false });
- 
+
     if (userId) {
       listQuery = listQuery.eq("user_id", userId);
     }
- 
+
     const { data } = await listQuery;
- 
+
     res.json({
       success: true,
       campaigns: (data || []).map(mapCampaignFromDb),
@@ -3712,66 +3713,66 @@ app.delete("/scheduled-campaigns/:id", async (req, res) => {
     });
   }
 });
- 
+
 app.patch("/scheduled-campaigns/:id/lifecycle", async (req, res) => {
   try {
     const { id } = req.params;
     const { userId, campaignStatus } = req.body;
- 
+
     if (!["active", "paused", "ended", "saved"].includes(campaignStatus)) {
       return res.status(400).json({
         error: "Invalid campaign status.",
       });
     }
- 
+
     const updateData = {
       campaign_status: campaignStatus,
       updated_at: new Date().toISOString(),
     };
- 
+
     if (campaignStatus === "ended") {
       updateData.ended_at = new Date().toISOString();
       updateData.status = "ended";
     }
- 
+
     if (campaignStatus === "saved") {
       updateData.status = "saved";
     }
- 
+
     if (campaignStatus === "paused") {
       updateData.status = "paused";
     }
- 
+
     if (campaignStatus === "active") {
       updateData.ended_at = null;
       updateData.status = "scheduled";
     }
- 
+
     let query = supabase
       .from("scheduled_campaigns")
       .update(updateData)
       .eq("id", id);
- 
+
     if (userId) {
       query = query.eq("user_id", userId);
     }
- 
+
     const { error } = await query;
- 
+
     if (error) {
       return res.status(500).json({
         error: "Failed to update campaign lifecycle.",
         details: error.message,
       });
     }
- 
+
     await createNotification({
       userId,
       title: "Campaign Status Updated",
       message: `Campaign status changed to ${campaignStatus}.`,
       type: campaignStatus === "paused" ? "warning" : "info",
     });
- 
+
     res.json({
       success: true,
       campaignStatus,
@@ -3783,10 +3784,10 @@ app.patch("/scheduled-campaigns/:id/lifecycle", async (req, res) => {
     });
   }
 });
- 
+
 async function runScheduledCampaigns() {
   const nowIso = new Date().toISOString();
- 
+
   const { data: dueCampaigns, error } = await supabase
     .from("scheduled_campaigns")
     .select("*")
@@ -3794,12 +3795,12 @@ async function runScheduledCampaigns() {
     .eq("campaign_status", "active")
     .lte("publish_at", nowIso)
     .limit(10);
- 
+
   if (error) {
     console.log("Failed to load due scheduled campaigns:", error.message);
     return;
   }
- 
+
   for (const campaign of dueCampaigns || []) {
     try {
       await supabase
@@ -3809,37 +3810,37 @@ async function runScheduledCampaigns() {
           updated_at: new Date().toISOString(),
         })
         .eq("id", campaign.id);
- 
+
       let publishData = null;
- 
+
       const platform = String(campaign.platform || "").trim().toLowerCase();
- 
+
       console.log(
         "SCHEDULER DEBUG:",
         "id =", campaign.id,
         "raw platform =", campaign.platform,
         "normalized =", platform
       );
- 
+
       if (platform === "facebook") {
         publishData = await publishFacebookPost({
-  title: campaign.title,
-  description: campaign.description,
-  hashtags: campaign.hashtags,
-  cta: campaign.cta,
-  productLink: campaign.product_link,
-  imageUrl: campaign.image_url,
-  pageId: campaign.page_id,
-});
+          title: campaign.title,
+          description: campaign.description,
+          hashtags: campaign.hashtags,
+          cta: campaign.cta,
+          productLink: campaign.product_link,
+          imageUrl: campaign.image_url,
+          pageId: campaign.page_id,
+        });
       } else if (platform === "instagram") {
         console.log("Publishing Instagram campaign:", campaign.id);
         publishData = await publishInstagramPost({
-  title: campaign.title,
-  description: campaign.description,
-  hashtags: campaign.hashtags,
-  cta: campaign.cta,
-  imageUrl: campaign.image_url,
-});
+          title: campaign.title,
+          description: campaign.description,
+          hashtags: campaign.hashtags,
+          cta: campaign.cta,
+          imageUrl: campaign.image_url,
+        });
       } else if (platform === "x") {
         console.log("Publishing X campaign:", campaign.id);
         publishData = await publishXPost({
@@ -3864,35 +3865,35 @@ async function runScheduledCampaigns() {
           campaign.platform
         );
       }
- 
+
       const repeatType = campaign.repeat_type || "one_time";
       let nextRunDate = null;
- 
+
       if (repeatType === "daily") {
         nextRunDate = new Date(campaign.publish_at);
         nextRunDate.setDate(nextRunDate.getDate() + 1);
       }
- 
+
       if (repeatType === "3days") {
         nextRunDate = new Date(campaign.publish_at);
         nextRunDate.setDate(nextRunDate.getDate() + 3);
       }
- 
+
       if (repeatType === "weekly") {
         nextRunDate = new Date(campaign.publish_at);
         nextRunDate.setDate(nextRunDate.getDate() + 7);
       }
- 
+
       if (repeatType === "biweekly") {
         nextRunDate = new Date(campaign.publish_at);
         nextRunDate.setDate(nextRunDate.getDate() + 14);
       }
- 
+
       if (repeatType === "monthly") {
         nextRunDate = new Date(campaign.publish_at);
         nextRunDate.setMonth(nextRunDate.getMonth() + 1);
       }
- 
+
       if (nextRunDate) {
         await supabase
           .from("scheduled_campaigns")
@@ -3902,33 +3903,33 @@ async function runScheduledCampaigns() {
             status: "scheduled",
             published_at: new Date().toISOString(),
             pin_data: publishData,
-error: null,
-posts: (campaign.posts || 0) + 1,
-updated_at: new Date().toISOString(),
+            error: null,
+            posts: (campaign.posts || 0) + 1,
+            updated_at: new Date().toISOString(),
           })
           .eq("id", campaign.id);
- 
+
         await createNotification({
           userId: campaign.user_id,
           title: "Recurring Campaign Published",
           message: `"${campaign.title}" was published and rescheduled for the next run.`,
           type: "success",
         });
- 
+
         console.log("Recurring campaign rescheduled:", campaign.id, repeatType);
       } else {
         await supabase
           .from("scheduled_campaigns")
           .update({
             status: "published",
-published_at: new Date().toISOString(),
-pin_data: publishData,
-error: null,
-posts: (campaign.posts || 0) + 1,
-updated_at: new Date().toISOString(),
+            published_at: new Date().toISOString(),
+            pin_data: publishData,
+            error: null,
+            posts: (campaign.posts || 0) + 1,
+            updated_at: new Date().toISOString(),
           })
           .eq("id", campaign.id);
- 
+
         await createNotification({
           userId: campaign.user_id,
           title: "Campaign Published",
@@ -3939,31 +3940,31 @@ updated_at: new Date().toISOString(),
       }
     } catch (err) {
       await supabase
-  .from("scheduled_campaigns")
-  .update({
-    status: "failed",
-    campaign_status: "paused",
-    error: err.message,
-    updated_at: new Date().toISOString(),
-  })
-  .eq("id", campaign.id);
- 
+        .from("scheduled_campaigns")
+        .update({
+          status: "failed",
+          campaign_status: "paused",
+          error: err.message,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaign.id);
+
       await createNotification({
         userId: campaign.user_id,
         title: "Scheduled Campaign Failed",
         message: `"${campaign.title}" failed to publish. ${err.message}`,
         type: "error",
       });
-console.log("SCHEDULER PLATFORM DEBUG:", campaign.id, campaign.platform);
-     
+      console.log("SCHEDULER PLATFORM DEBUG:", campaign.id, campaign.platform);
+
       console.log("Scheduled campaign failed:", campaign.id, err.message);
     }
   }
 }
- 
+
 async function expireFreeMonthSubscriptions() {
   const nowIso = new Date().toISOString();
- 
+
   const { data: expiredProfiles, error } = await supabase
     .from("profiles")
     .select("id, email, current_period_end")
@@ -3972,12 +3973,12 @@ async function expireFreeMonthSubscriptions() {
     .eq("plan", "referral_free_month")
     .not("current_period_end", "is", null)
     .lte("current_period_end", nowIso);
- 
+
   if (error) {
     console.log("Free month expiration check failed:", error.message);
     return;
   }
- 
+
   for (const profile of expiredProfiles || []) {
     await supabase
       .from("profiles")
@@ -3990,7 +3991,7 @@ async function expireFreeMonthSubscriptions() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", profile.id);
- 
+
     await createNotification({
       userId: profile.id,
       title: "Free Month Ended",
@@ -3999,29 +4000,29 @@ async function expireFreeMonthSubscriptions() {
     });
   }
 }
- 
+
 setInterval(runScheduledCampaigns, 60 * 1000);
 setInterval(expireFreeMonthSubscriptions, 60 * 60 * 1000);
- 
+
 app.post("/generate", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No artwork image uploaded." });
     }
- 
+
     const productLink = req.body.productLink || "";
     const platform = req.body.platform || "Pinterest";
     const stylePreset = req.body.stylePreset || "Bold Sales";
     const imageBase64 = req.file.buffer.toString("base64");
     const mimeType = req.file.mimetype;
- 
+
     const cloudinaryUpload = await cloudinary.uploader.upload(
       `data:${mimeType};base64,${imageBase64}`,
       { folder: "artboost-ai" }
     );
- 
+
     const hostedImageUrl = cloudinaryUpload.secure_url;
- 
+
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
       input: [
@@ -4267,177 +4268,177 @@ Keep the response clean, visually appealing, and ready to copy.
         },
       ],
     });
- 
-let finalOutput = response.output_text;
- 
-if (platform === "Instagram") {
-  finalOutput = finalOutput.replace(
-    /https?:\/\/[^\s]+/gi,
-    ""
-  );
- 
-  finalOutput = finalOutput.replace(
-    /www\.[^\s]+/gi,
-    ""
-  );
- 
-  finalOutput = finalOutput.replace(
-    /[a-zA-Z0-9.-]+\.(com|net|org|shop|store)[^\s]*/gi,
-    ""
-  );
- 
-  finalOutput = finalOutput.replace(
-    /click the link in bio/gi,
-    "Tap the link in bio"
-  );
- 
-  finalOutput = finalOutput.replace(
-    /swipe up/gi,
-    "Tap the link in bio"
-  );
- 
-  finalOutput = finalOutput.replace(
-  /grab yours here:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /grab yours now:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /shop now:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /shop here:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /check it out here:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /visit our store:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /visit:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /grab yours now:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /grab yours today:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /get yours now:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /get yours today:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /buy yours today:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /order yours today:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /tap here:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /click now:?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /grab yours now at/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /grab yours here at/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /get yours now at/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /shop now at/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /\bat\s+and\b/gi,
-  "and"
-);
- 
-finalOutput = finalOutput.replace(
-  /\s+at\s*$/gim,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /!\s*at\b/gi,
-  "!"
-);
- 
-finalOutput = finalOutput.replace(
-  /shop now/gi,
-  "Tap the link in bio"
-);
- 
-finalOutput = finalOutput.replace(
-  /(grab|snag|get|buy|order)\s+yours?\s+(now|today|here)\s*(at)?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /\s+and\s+burn\s+rubber\s+in\s+style\.?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /check it out\s*👉?/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(
-  /check it out/gi,
-  ""
-);
- 
-finalOutput = finalOutput.replace(/\s{2,}/g, " ");
-}
- 
-res.json({
-  result: finalOutput,
-  imageUrl: hostedImageUrl,
-});
+
+    let finalOutput = response.output_text;
+
+    if (platform === "Instagram") {
+      finalOutput = finalOutput.replace(
+        /https?:\/\/[^\s]+/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /www\.[^\s]+/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /[a-zA-Z0-9.-]+\.(com|net|org|shop|store)[^\s]*/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /click the link in bio/gi,
+        "Tap the link in bio"
+      );
+
+      finalOutput = finalOutput.replace(
+        /swipe up/gi,
+        "Tap the link in bio"
+      );
+
+      finalOutput = finalOutput.replace(
+        /grab yours here:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /grab yours now:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /shop now:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /shop here:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /check it out here:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /visit our store:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /visit:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /grab yours now:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /grab yours today:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /get yours now:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /get yours today:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /buy yours today:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /order yours today:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /tap here:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /click now:?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /grab yours now at/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /grab yours here at/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /get yours now at/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /shop now at/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /\bat\s+and\b/gi,
+        "and"
+      );
+
+      finalOutput = finalOutput.replace(
+        /\s+at\s*$/gim,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /!\s*at\b/gi,
+        "!"
+      );
+
+      finalOutput = finalOutput.replace(
+        /shop now/gi,
+        "Tap the link in bio"
+      );
+
+      finalOutput = finalOutput.replace(
+        /(grab|snag|get|buy|order)\s+yours?\s+(now|today|here)\s*(at)?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /\s+and\s+burn\s+rubber\s+in\s+style\.?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /check it out\s*👉?/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(
+        /check it out/gi,
+        ""
+      );
+
+      finalOutput = finalOutput.replace(/\s{2,}/g, " ");
+    }
+
+    res.json({
+      result: finalOutput,
+      imageUrl: hostedImageUrl,
+    });
   } catch (err) {
     console.error("Generate error:", err);
     res.status(500).json({
@@ -4446,17 +4447,17 @@ res.json({
     });
   }
 });
- 
+
 app.post("/generate-platform-content", async (req, res) => {
   try {
     const { title, description, hashtags, cta, productLink } = req.body;
- 
+
     if (!title || !description) {
       return res.status(400).json({
         error: "Missing title or description.",
       });
     }
- 
+
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
       input: `
@@ -4580,75 +4581,75 @@ Final check:
 - Return only valid JSON.
 `,
     });
- 
+
     const raw = response.output_text
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
- 
+
     const parsed = JSON.parse(raw);
- 
+
     res.json({
       success: true,
       content: parsed,
     });
   } catch (err) {
     console.error("Platform content generation error:", err);
- 
+
     res.status(500).json({
       error: "Failed to generate platform-specific content.",
       details: err.message,
     });
   }
 });
- 
+
 app.post("/apply-referral", async (req, res) => {
   try {
     const { userId, referralCode } = req.body;
- 
+
     if (!userId || !referralCode) {
       return res.status(400).json({
         error: "Missing userId or referral code."
       });
     }
- 
+
     const { data: currentUser, error: currentError } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
- 
+
     if (currentError || !currentUser) {
       return res.status(404).json({
         error: "User not found."
       });
     }
- 
+
     if (currentUser.referral_used) {
       return res.status(400).json({
         error: "Referral already used."
       });
     }
- 
+
     const { data: referrer, error: refError } = await supabase
       .from("profiles")
       .select("*")
       .eq("referral_code", referralCode.toUpperCase())
       .single();
- 
+
     if (refError || !referrer) {
       return res.status(404).json({
         error: "Invalid referral code."
       });
     }
- 
+
     if (referrer.id === userId) {
       return res.status(400).json({
         error: "You cannot refer yourself."
       });
     }
- 
+
     await supabase
       .from("profiles")
       .update({
@@ -4656,75 +4657,75 @@ app.post("/apply-referral", async (req, res) => {
         referral_used: true
       })
       .eq("id", userId);
- 
+
     await supabase
-  .from("profiles")
-  .update({
-    free_months: Math.min(
-  (referrer.free_months || 0) + 1,
-  3
-),
-referral_count: (referrer.referral_count || 0) + 1,
-  })
-  .eq("id", referrer.id);
- 
+      .from("profiles")
+      .update({
+        free_months: Math.min(
+          (referrer.free_months || 0) + 1,
+          3
+        ),
+        referral_count: (referrer.referral_count || 0) + 1,
+      })
+      .eq("id", referrer.id);
+
     res.json({
       success: true
     });
- 
+
   } catch (err) {
     res.status(500).json({
       error: err.message
     });
   }
 });
- 
+
 app.post("/apply-referral", async (req, res) => {
   try {
     const { userId, referralCode } = req.body;
- 
+
     if (!userId || !referralCode) {
       return res.status(400).json({
         error: "Missing userId or referral code."
       });
     }
- 
+
     const { data: currentUser, error: currentError } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
- 
+
     if (currentError || !currentUser) {
       return res.status(404).json({
         error: "User not found."
       });
     }
- 
+
     if (currentUser.referral_used) {
       return res.status(400).json({
         error: "Referral already used."
       });
     }
- 
+
     const { data: referrer, error: refError } = await supabase
       .from("profiles")
       .select("*")
       .eq("referral_code", referralCode.toUpperCase())
       .single();
- 
+
     if (refError || !referrer) {
       return res.status(404).json({
         error: "Invalid referral code."
       });
     }
- 
+
     if (referrer.id === userId) {
       return res.status(400).json({
         error: "You cannot refer yourself."
       });
     }
- 
+
     await supabase
       .from("profiles")
       .update({
@@ -4732,22 +4733,22 @@ app.post("/apply-referral", async (req, res) => {
         referral_used: true
       })
       .eq("id", userId);
- 
+
     await supabase
-  .from("profiles")
-  .update({
-    free_months: Math.min(
-  (referrer.free_months || 0) + 1,
-  3
-),
-referral_count: (referrer.referral_count || 0) + 1,
-  })
-  .eq("id", referrer.id);
- 
+      .from("profiles")
+      .update({
+        free_months: Math.min(
+          (referrer.free_months || 0) + 1,
+          3
+        ),
+        referral_count: (referrer.referral_count || 0) + 1,
+      })
+      .eq("id", referrer.id);
+
     res.json({
       success: true
     });
- 
+
   } catch (err) {
     res.status(500).json({
       error: err.message
@@ -5051,8 +5052,8 @@ app.post("/api/v2/products", async (req, res) => {
       categories: Array.isArray(categories) ? categories : [],
       metadata:
         metadata &&
-        typeof metadata === "object" &&
-        !Array.isArray(metadata)
+          typeof metadata === "object" &&
+          !Array.isArray(metadata)
           ? metadata
           : {},
 
@@ -5732,8 +5733,8 @@ app.post("/api/v2/store-connections", async (req, res) => {
       scopes: Array.isArray(scopes) ? scopes : [],
       metadata:
         metadata &&
-        typeof metadata === "object" &&
-        !Array.isArray(metadata)
+          typeof metadata === "object" &&
+          !Array.isArray(metadata)
           ? metadata
           : {},
 
@@ -6092,46 +6093,43 @@ app.delete("/api/v2/store-connections/:id", async (req, res) => {
     });
   }
 });
- 
+
 app.listen(PORT, async () => {
- 
+
   console.log(`Server running on port ${PORT}`);
   console.log(`Pinterest API base: ${PINTEREST_API_BASE}`);
- 
-await loadFacebookConnection();
-await loadPinterestConnection();
 
-console.log(
-  "Facebook saved connection loaded:",
-  facebookConnection.connected
-);
+  await loadFacebookConnection();
+  await loadPinterestConnection();
 
-console.log(
-  "Pinterest saved connection loaded:",
-  pinterestConnection.connected
-);
- 
+  console.log(
+    "Facebook saved connection loaded:",
+    facebookConnection.connected
+  );
+
+  console.log(
+    "Pinterest saved connection loaded:",
+    pinterestConnection.connected
+  );
+
   console.log("LIVE SERVER VERSION: INSTAGRAM LONG CAPTION FIX 1");
   console.log("LIVE SERVER VERSION: FACEBOOK PERSISTENCE 1");
   console.log("LIVE SERVER VERSION: INSTAGRAM SCHEDULER FIX 1");
   console.log("LIVE SERVER VERSION: INSTAGRAM DEBUG 2");
- 
+
   console.log(
-    `Stripe configured: ${
-      process.env.STRIPE_SECRET_KEY ? "yes" : "no"
+    `Stripe configured: ${process.env.STRIPE_SECRET_KEY ? "yes" : "no"
     }`
   );
   console.log(
-    `Stripe webhook configured: ${
-      process.env.STRIPE_WEBHOOK_SECRET ? "yes" : "no"
+    `Stripe webhook configured: ${process.env.STRIPE_WEBHOOK_SECRET ? "yes" : "no"
     }`
   );
   console.log(
-  `Supabase configured: ${
-    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+    `Supabase configured: ${process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
       ? "yes"
       : "no"
-  }`
-);
+    }`
+  );
 
 });
