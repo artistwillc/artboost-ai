@@ -41,22 +41,19 @@ type Product = {
 export default function ProductsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const [products, setProducts] = useState<Product[]>([]);
+  type Store = {
+  id: string;
+  storeType: string;
+  storeName: string;
+  connected: boolean;
+  productCount: number;
+};
+
+const [stores, setStores] = useState<Store[]>([]);
   const [search, setSearch] = useState("");
   const [selectedStore, setSelectedStore] = useState("All");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const stores = useMemo(() => {
-  const unique = Array.from(
-    new Set(
-      products
-        .map((p) => p.storeName || p.storeType)
-        .filter(Boolean)
-    )
-  );
-
-  return ["All", ...unique];
-}, [products]);
-
   const loadProducts = useCallback(async (showLoader = true) => {
     try {
       if (showLoader) {
@@ -369,21 +366,24 @@ export default function ProductsScreen() {
 >
   {stores.map((store) => (
   <Pressable
-    key={store}
+    key={store.id}
     style={[
       styles.storeTab,
-      selectedStore === store && styles.storeTabActive,
+      selectedStore === store.storeName && styles.storeTabActive,
     ]}
-    onPress={() => setSelectedStore(store)}
+    onPress={() => setSelectedStore(store.storeName)}
   >
     <Text
       numberOfLines={1}
       style={[
         styles.storeTabText,
-        selectedStore === store && styles.storeTabTextActive,
+        selectedStore === store.storeName &&
+          styles.storeTabTextActive,
       ]}
     >
-      {store.includes("myshopify.com") ? "Shopify" : store}
+      {store.storeName.includes("myshopify.com")
+        ? `Shopify (${store.productCount})`
+        : `${store.storeName} (${store.productCount})`}
     </Text>
   </Pressable>
 ))}
