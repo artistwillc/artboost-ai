@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -107,6 +108,9 @@ const storePlatforms: PlatformItem[] = [
 ];
 
 export default function ConnectionsScreen() {
+  const { section } = useLocalSearchParams<{
+  section?: string;
+}>();
   const [activeSection, setActiveSection] =
     useState<ConnectionSection>("social");
 
@@ -484,6 +488,16 @@ export default function ConnectionsScreen() {
       ]
     );
   };
+
+  useEffect(() => {
+  if (section === "stores") {
+    setActiveSection("stores");
+  }
+
+  if (section === "social") {
+    setActiveSection("social");
+  }
+}, [section]);
 
   useEffect(() => {
     loadConnections();
