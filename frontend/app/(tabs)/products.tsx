@@ -142,9 +142,15 @@ export default function ProductsScreen() {
         onPress: () => router.push("/product-create" as any),
       },
       {
-        text: "Connect Store",
-        onPress: () => router.push("/store-connections" as any),
+  text: "Connect Store",
+  onPress: () =>
+    router.push({
+      pathname: "/connections" as any,
+      params: {
+        section: "stores",
       },
+    }),
+},
       {
         text: "Cancel",
         style: "cancel",
