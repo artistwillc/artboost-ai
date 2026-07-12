@@ -356,6 +356,7 @@ export default function ProductsScreen() {
       <ScrollView
   horizontal
   showsHorizontalScrollIndicator={false}
+  style={styles.storeTabsScroll}
   contentContainerStyle={styles.storeTabs}
 >
   {stores.map((store) => (
@@ -368,6 +369,7 @@ export default function ProductsScreen() {
       onPress={() => setSelectedStore(store)}
     >
       <Text
+        numberOfLines={1}
         style={[
           styles.storeTabText,
           selectedStore === store && styles.storeTabTextActive,
@@ -512,6 +514,12 @@ const styles = StyleSheet.create({
     height: 34,
     backgroundColor: "#333",
   },
+
+  storeTabsScroll: {
+  flexGrow: 0,
+  height: 54,
+  marginBottom: 8,
+},
 
   storeTabs: {
   paddingHorizontal: 20,
