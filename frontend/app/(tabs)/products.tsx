@@ -362,25 +362,33 @@ export default function ProductsScreen() {
   contentContainerStyle={styles.storeTabs}
 >
   {stores.map((store) => (
-    <Pressable
-      key={store}
+  <Pressable
+    key={store}
+    style={[
+      styles.storeTab,
+      selectedStore === store && styles.storeTabActive,
+    ]}
+    onPress={() => setSelectedStore(store)}
+  >
+    <Text
+      numberOfLines={1}
       style={[
-        styles.storeTab,
-        selectedStore === store && styles.storeTabActive,
+        styles.storeTabText,
+        selectedStore === store && styles.storeTabTextActive,
       ]}
-      onPress={() => setSelectedStore(store)}
     >
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.storeTabText,
-          selectedStore === store && styles.storeTabTextActive,
-        ]}
-      >
-        {store.includes("myshopify.com") ? "Shopify" : store}
-      </Text>
-    </Pressable>
-  ))}
+      {store.includes("myshopify.com") ? "Shopify" : store}
+    </Text>
+  </Pressable>
+))}
+
+<Pressable
+  style={styles.addStoreTab}
+  onPress={() => router.push("/store-connections" as any)}
+>
+  <Ionicons name="add" size={18} color="#ffffff" />
+  <Text style={styles.addStoreTabText}>Add Store</Text>
+</Pressable>
 </ScrollView>
 
       <View style={styles.searchWrap}>
@@ -558,7 +566,27 @@ storeTabTextActive: {
   color: "#ffffff",
 },
 
-  searchWrap: {
+addStoreTab: {
+  height: 40,
+  paddingHorizontal: 16,
+  borderRadius: 20,
+  backgroundColor: "#2b2145",
+  borderWidth: 1,
+  borderColor: "#5b3fa3",
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: 6,
+  marginRight: 20,
+},
+
+addStoreTabText: {
+  color: "#ffffff",
+  fontSize: 14,
+  fontWeight: "800",
+},
+
+searchWrap: {
     marginHorizontal: 20,
     marginBottom: 14,
     minHeight: 52,
