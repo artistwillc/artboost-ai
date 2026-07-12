@@ -55,50 +55,73 @@ const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const loadProducts = useCallback(async (showLoader = true) => {
-    try {
-      if (showLoader) {
-        setLoading(true);
-      }
-
-      const response = await fetch(
-  `${API_BASE}/products?userId=${encodeURIComponent(USER_ID)}`
-);
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.details || data.error || "Unable to load products.");
-      }
-
-  setProducts(
-  (data.products || []).map((item: any) => ({
-    id: item.id,
-    title: item.title,
-    description: item.description,
-    imageUrl: item.image_url,
-    productUrl: item.product_url,
-    price: item.price,
-    currency: item.currency,
-    storeType: item.store_type,
-    storeName: item.store_name,
-    status: item.status,
-    automationEnabled: item.automation_enabled || false,
-    timesPosted: item.times_posted || 0,
-    lastPostedAt: item.last_posted_at,
-  }))
-);
-    } catch (error: any) {
-      console.log("Products load failed:", error);
-
-      Alert.alert(
-        "Products Unavailable",
-        error?.message || "ArtBoost could not load your products."
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  try {
+    if (showLoader) {
+      setLoading(true);
     }
-  }, []);
+
+    const [productsResponse, storesResponse] = await Promise.all([
+      fetch(
+        `${API_BASE}/products?userId=${encodeURIComponent(USER_ID)}`
+      ),
+      fetch(
+        `${API_BASE}/stores?userId=${encodeURIComponent(USER_ID)}`
+      ),
+    ]);
+
+    const [productsData, storesData] = await Promise.all([
+      productsResponse.json(),
+      storesResponse.json(),
+    ]);
+
+    if (!productsResponse.ok || !productsData.success) {
+      throw new Error(
+        productsData.details ||
+          productsData.error ||
+          "Unable to load products."
+      );
+    }
+
+    if (!storesResponse.ok || !storesData.success) {
+      throw new Error(
+        storesData.details ||
+          storesData.error ||
+          "Unable to load stores."
+      );
+    }
+
+    setProducts(
+      (productsData.products || []).map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        imageUrl: item.image_url,
+        productUrl: item.product_url,
+        price: item.price,
+        currency: item.currency,
+        storeType: item.store_type,
+        storeName: item.store_name,
+        status: item.status,
+        automationEnabled: item.automation_enabled || false,
+        timesPosted: item.times_posted || 0,
+        lastPostedAt: item.last_posted_at,
+      }))
+    );
+
+    setStores(storesData.stores || []);
+  } catch (error: any) {
+    console.log("Products or stores load failed:", error);
+
+    Alert.alert(
+      "Products Unavailable",
+      error?.message ||
+        "ArtBoost could not load your products and stores."
+    );
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -364,44 +387,61 @@ const [stores, setStores] = useState<Store[]>([]);
   style={styles.storeTabsScroll}
   contentContainerStyle={styles.storeTabs}
 >
-  {stores.map((store) => (
   <Pressable
-    key={store.id}
     style={[
       styles.storeTab,
-      selectedStore === store.storeName && styles.storeTabActive,
+      selectedStore === "All" && styles.storeTabActive,
     ]}
-    onPress={() => setSelectedStore(store.storeName)}
+    onPress={() => setSelectedStore("All")}
   >
     <Text
-      numberOfLines={1}
       style={[
         styles.storeTabText,
-        selectedStore === store.storeName &&
-          styles.storeTabTextActive,
+        selectedStore === "All" && styles.storeTabTextActive,
       ]}
     >
-      {store.storeName.includes("myshopify.com")
-        ? `Shopify (${store.productCount})`
-        : `${store.storeName} (${store.productCount})`}
+      All ({products.length})
     </Text>
   </Pressable>
-))}
 
-<Pressable
-  style={styles.addStoreTab}
-  onPress={() =>
-  router.push({
-    pathname: "/connections" as any,
-    params: {
-      section: "stores",
-    },
-  })
-}
->
-  <Ionicons name="add" size={18} color="#ffffff" />
-  <Text style={styles.addStoreTabText}>Add Store</Text>
-</Pressable>
+  {stores.map((store) => (
+    <Pressable
+      key={store.id}
+      style={[
+        styles.storeTab,
+        selectedStore === store.storeName && styles.storeTabActive,
+      ]}
+      onPress={() => setSelectedStore(store.storeName)}
+    >
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.storeTabText,
+          selectedStore === store.storeName &&
+            styles.storeTabTextActive,
+        ]}
+      >
+        {store.storeName.includes("myshopify.com")
+          ? `Shopify (${store.productCount})`
+          : `${store.storeName} (${store.productCount})`}
+      </Text>
+    </Pressable>
+  ))}
+
+  <Pressable
+    style={styles.addStoreTab}
+    onPress={() =>
+      router.push({
+        pathname: "/connections" as any,
+        params: {
+          section: "stores",
+        },
+      })
+    }
+  >
+    <Ionicons name="add" size={18} color="#ffffff" />
+    <Text style={styles.addStoreTabText}>Add Store</Text>
+  </Pressable>
 </ScrollView>
 
       <View style={styles.searchWrap}>
