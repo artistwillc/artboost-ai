@@ -2639,6 +2639,64 @@ app.get("/shopify/products", async (req, res) => {
   }
 });
 
+app.get("/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing product ID.",
+      });
+    }
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    const { data: product, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Product details load failed:", error);
+
+      return res.status(500).json({
+        success: false,
+        error: "Unable to load product.",
+        details: error.message,
+      });
+    }
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: "Product not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      product,
+    });
+  } catch (err) {
+    console.error("Product details route error:", err);
+
+    res.status(500).json({
+      success: false,
+      error: "Product details request failed.",
+      details: err.message,
+    });
+  }
+});
+
 app.get("/products", async (req, res) => {
   try {
     const { userId, storeType, storeName, status, limit, offset } = req.query;
