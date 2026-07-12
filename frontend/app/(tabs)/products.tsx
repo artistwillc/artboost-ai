@@ -375,7 +375,7 @@ export default function ProductsScreen() {
           selectedStore === store && styles.storeTabTextActive,
         ]}
       >
-        {store}
+        {store.includes("myshopify.com") ? "Shopify" : store}
       </Text>
     </Pressable>
   ))}
@@ -587,9 +587,9 @@ storeTabTextActive: {
   },
 
   listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 28,
-  },
+  paddingHorizontal: 20,
+  paddingBottom: 130,
+},
 
   listContentEmpty: {
     flexGrow: 1,
