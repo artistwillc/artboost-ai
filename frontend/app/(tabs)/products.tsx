@@ -64,7 +64,7 @@ export default function ProductsScreen() {
       }
 
       const response = await fetch(
-  `${API_BASE}/shopify/products?userId=${encodeURIComponent(USER_ID)}`
+  `${API_BASE}/products?userId=${encodeURIComponent(USER_ID)}`
 );
 
       const data = await response.json();
