@@ -3,6 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { supabase } from "../../lib/supabase";
 import {
   ActivityIndicator,
   Alert,
@@ -19,8 +20,6 @@ import {
 } from "react-native";
 
 const API_BASE = "https://artboost-ai.onrender.com";
-
-const USER_ID = "08f428a1-6abf-4daa-809f-06a92484c07a";
 
 type Product = {
   id: string;
@@ -54,7 +53,12 @@ const [stores, setStores] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState("All");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const loadProducts = useCallback(async (showLoader = true) => {
+  const [userId, setUserId] = useState<string | null>(null);
+  const loadProducts = useCallback(
+  async (
+    currentUserId: string,
+    showLoader = true
+  ) => {
   try {
     if (showLoader) {
       setLoading(true);
@@ -62,10 +66,10 @@ const [stores, setStores] = useState<Store[]>([]);
 
     const [productsResponse, storesResponse] = await Promise.all([
       fetch(
-        `${API_BASE}/products?userId=${encodeURIComponent(USER_ID)}`
+        `${API_BASE}/products?userId=${encodeURIComponent(currentUserId)}`
       ),
       fetch(
-        `${API_BASE}/stores?userId=${encodeURIComponent(USER_ID)}`
+        `${API_BASE}/stores?userId=${encodeURIComponent(currentUserId)}`
       ),
     ]);
 
@@ -124,10 +128,28 @@ const [stores, setStores] = useState<Store[]>([]);
 }, []);
 
   useFocusEffect(
-    useCallback(() => {
-      loadProducts();
-    }, [loadProducts])
-  );
+  useCallback(() => {
+    async function initialize() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        Alert.alert(
+          "Not Signed In",
+          "Please sign in to view your products."
+        );
+        return;
+      }
+
+      setUserId(user.id);
+
+      loadProducts(user.id);
+    }
+
+    initialize();
+  }, [loadProducts])
+);
 
   const filteredProducts = useMemo(() => {
   const cleanSearch = search.trim().toLowerCase();
@@ -486,7 +508,9 @@ const [stores, setStores] = useState<Store[]>([]);
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
-                loadProducts(false);
+                if (userId) {
+  loadProducts(userId, false);
+}
               }}
               tintColor="#8b5cf6"
             />
