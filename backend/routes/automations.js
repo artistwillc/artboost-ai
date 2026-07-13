@@ -17,7 +17,7 @@ const router = express.Router();
 /*
  * GET /automations/store/:storeId
  *
- * Loads the automation associated with one connected store.
+ * Loads all automations associated with one connected store.
  *
  * Query:
  * userId
@@ -44,42 +44,30 @@ router.get(
       }
 
       const {
-  data: automationRows,
-  error,
-} = await supabase
-  .from("store_automations")
-  .select("*")
-  .eq("user_id", String(userId))
-  .eq("store_id", String(storeId))
-  .order("created_at", {
-    ascending: false,
-  });
+        data: automationRows,
+        error,
+      } = await supabase
+        .from("store_automations")
+        .select("*")
+        .eq("user_id", String(userId))
+        .eq("store_id", String(storeId))
+        .order("created_at", {
+          ascending: false,
+        });
 
-if (error) {
-  throw new Error(
-    `Unable to load store automations: ${error.message}`
-  );
-}
-
-const automations = automationRows || [];
-
-return res.json({
-  success: true,
-  total: automations.length,
-  automations,
-});
+      if (error) {
+        throw new Error(
+          `Unable to load store automations: ${error.message}`
+        );
       }
 
-      const automation =
-        await getAutomationById({
-          automationId:
-            automationRow.id,
-          userId: String(userId),
-        });
+      const automations =
+        automationRows || [];
 
       return res.json({
         success: true,
-        automation,
+        total: automations.length,
+        automations,
       });
     } catch (error) {
       console.error(
@@ -168,30 +156,17 @@ router.get(
  * POST /automations
  *
  * Creates or updates one store automation.
- *
- * Body:
- * userId
- * storeId
- * storeType
- * storeName
- * automationName
- * enabled
- * frequency
- * postingTime
- * timezone
- * platforms
- * selectionMode
- * repeatDelayDays
  */
 router.post("/", async (req, res) => {
   try {
     const {
-  userId,
-  storeId,
-  storeType,
-  storeName,
-  automationName = "Daily Store Rotation",
-  enabled = false,
+      userId,
+      storeId,
+      storeType,
+      storeName,
+      automationName =
+        "Daily Store Rotation",
+      enabled = false,
       frequency = "daily",
       postingTime = "09:00:00",
       timezone = "America/Chicago",
@@ -243,10 +218,11 @@ router.post("/", async (req, res) => {
         storeId: String(storeId),
         storeType: String(storeType),
         storeName: String(storeName),
-automationName: String(
-  automationName || "Daily Store Rotation"
-),
-enabled: Boolean(enabled),
+        automationName: String(
+          automationName ||
+            "Daily Store Rotation"
+        ),
+        enabled: Boolean(enabled),
         frequency: String(frequency),
         postingTime: String(
           postingTime
@@ -285,14 +261,6 @@ enabled: Boolean(enabled),
  *
  * Returns the next eligible product without
  * changing any posting history.
- *
- * Body:
- * userId
- * storeId
- * storeType
- * storeName
- * selectionMode
- * repeatDelayDays
  */
 router.post(
   "/preview",
@@ -365,10 +333,6 @@ router.post(
  * PATCH /automations/:automationId/disable
  *
  * Disables an existing automation.
- *
- * Body:
- * userId
- * reason
  */
 router.patch(
   "/:automationId/disable",
