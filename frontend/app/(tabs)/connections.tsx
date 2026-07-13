@@ -1,6 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import {
+  router,
+  useLocalSearchParams,
+} from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -117,6 +120,12 @@ export default function ConnectionsScreen() {
   const [connections, setConnections] = useState<Record<string, boolean>>({});
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [shopifyStore, setShopifyStore] = useState("");
+  const [shopifyDetails, setShopifyDetails] = useState<{
+  id: string;
+  storeType: string;
+  storeName: string;
+  productCount: number;
+} | null>(null);
 
   const visiblePlatforms = useMemo(() => {
     return activeSection === "social" ? socialPlatforms : storePlatforms;
@@ -268,6 +277,50 @@ export default function ConnectionsScreen() {
           )
         );
       }
+
+const storesResponse = await fetch(
+  `${BACKEND_URL}/stores?userId=${encodeURIComponent(
+    userId
+  )}`
+);
+
+const storesData =
+  await storesResponse.json();
+
+if (
+  storesResponse.ok &&
+  storesData.success
+) {
+  const shopifyConnection = (
+    storesData.stores || []
+  ).find(
+    (store: any) =>
+      String(
+        store.storeType || ""
+      ).toLowerCase() === "shopify"
+  );
+
+  if (shopifyConnection) {
+    setShopifyDetails({
+      id: String(
+        shopifyConnection.id
+      ),
+      storeType: String(
+        shopifyConnection.storeType
+      ),
+      storeName: String(
+        shopifyConnection.storeName
+      ),
+      productCount:
+        Number(
+          shopifyConnection.productCount
+        ) || 0,
+    });
+  } else {
+    setShopifyDetails(null);
+  }
+}
+
     } catch (error) {
       console.log(
         "Shopify status check failed:",
@@ -373,6 +426,32 @@ export default function ConnectionsScreen() {
       );
     }
   };
+
+  const openShopifyDashboard = () => {
+  if (!shopifyDetails) {
+    Alert.alert(
+      "Store Information Unavailable",
+      "Refresh the connection status and try again."
+    );
+
+    return;
+  }
+
+  router.push({
+    pathname: "/store-dashboard" as any,
+    params: {
+      storeId: shopifyDetails.id,
+      storeName:
+        shopifyDetails.storeName,
+      storeType:
+        shopifyDetails.storeType,
+      productCount: String(
+        shopifyDetails.productCount
+      ),
+      connected: "true",
+    },
+  });
+};
 
   const connectPlatform = async (
     platform: string
@@ -559,6 +638,22 @@ export default function ConnectionsScreen() {
           </View>
 
           <View style={styles.buttonColumn}>
+            {connected &&
+platform.name === "Shopify" ? (
+  <Pressable
+    style={[
+      styles.button,
+      styles.manageStoreButton,
+    ]}
+    onPress={
+      openShopifyDashboard
+    }
+  >
+    <Text style={styles.buttonText}>
+      Manage Store
+    </Text>
+  </Pressable>
+) : null}
             <Pressable
               style={[
                 styles.button,
@@ -935,6 +1030,10 @@ const styles = StyleSheet.create({
   connectButton: {
     backgroundColor: "#12a86b",
   },
+
+  manageStoreButton: {
+  backgroundColor: "#8b5cf6",
+},
 
   reconnectButton: {
     backgroundColor: "#2d6cdf",

@@ -190,3 +190,328 @@ export async function getStores({
     }
   );
 }
+
+/*
+ * Select the next eligible product for store automation.
+ *
+ * Priority:
+ * 1. Products that have never been posted
+ * 2. Products with the oldest last_posted_at date
+ * 3. Products with the lowest times_posted count
+ *
+ * Products posted inside the repeat-delay window are excluded.
+ */
+export async function getNextAutomationProduct({
+  userId,
+  storeId,
+  storeType,
+  storeName,
+  repeatDelayDays = 30,
+  selectionMode = "least_recently_posted",
+}) {
+  if (!userId) {
+    throw new Error(
+      "A userId is required to select an automation product."
+    );
+  }
+
+  const parsedRepeatDelayDays = Math.max(
+    Number(repeatDelayDays) || 0,
+    0
+  );
+
+  let resolvedStoreType = storeType
+    ? String(storeType).toLowerCase()
+    : null;
+
+  let resolvedStoreName = storeName
+    ? String(storeName)
+    : null;
+
+  /*
+   * If only storeId is provided, resolve the connected store
+   * from social_connections.
+   */
+  if (
+    storeId &&
+    (!resolvedStoreType || !resolvedStoreName)
+  ) {
+    const {
+      data: connection,
+      error: connectionError,
+    } = await supabase
+      .from("social_connections")
+      .select(
+        `
+          id,
+          platform,
+          shop_domain,
+          connected
+        `
+      )
+      .eq("id", storeId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (connectionError) {
+      throw new Error(
+        `Unable to resolve store connection: ${connectionError.message}`
+      );
+    }
+
+    if (!connection) {
+      throw new Error(
+        "The selected store connection was not found."
+      );
+    }
+
+    if (!connection.connected) {
+      throw new Error(
+        "The selected store is not currently connected."
+      );
+    }
+
+    resolvedStoreType = String(
+      connection.platform || ""
+    ).toLowerCase();
+
+    resolvedStoreName =
+      connection.shop_domain ||
+      connection.platform ||
+      null;
+  }
+
+  if (!resolvedStoreType) {
+    throw new Error(
+      "A storeType is required to select an automation product."
+    );
+  }
+
+  if (!resolvedStoreName) {
+    throw new Error(
+      "A storeName is required to select an automation product."
+    );
+  }
+
+  let query = supabase
+    .from("products")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("store_type", resolvedStoreType)
+    .eq("store_name", resolvedStoreName);
+
+  /*
+   * Only include active products when a status value exists.
+   */
+  query = query.or(
+    "status.is.null,status.eq.active,status.eq.published"
+  );
+
+  const {
+    data: products,
+    error: productsError,
+  } = await query;
+
+  if (productsError) {
+    throw new Error(
+      `Unable to load automation products: ${productsError.message}`
+    );
+  }
+
+  const availableProducts = products || [];
+
+  if (availableProducts.length === 0) {
+    return null;
+  }
+
+  const repeatCutoff = new Date();
+
+  repeatCutoff.setDate(
+    repeatCutoff.getDate() - parsedRepeatDelayDays
+  );
+
+  const eligibleProducts =
+    parsedRepeatDelayDays === 0
+      ? availableProducts
+      : availableProducts.filter(
+          (product) => {
+            if (!product.last_posted_at) {
+              return true;
+            }
+
+            const lastPostedDate = new Date(
+              product.last_posted_at
+            );
+
+            if (
+              Number.isNaN(
+                lastPostedDate.getTime()
+              )
+            ) {
+              return true;
+            }
+
+            return lastPostedDate < repeatCutoff;
+          }
+        );
+
+  /*
+   * If every product is still inside the repeat-delay
+   * window, do not repeat one early.
+   */
+  if (eligibleProducts.length === 0) {
+    return null;
+  }
+
+  if (selectionMode === "random") {
+    const randomIndex = Math.floor(
+      Math.random() * eligibleProducts.length
+    );
+
+    return eligibleProducts[randomIndex];
+  }
+
+  const sortedProducts = [
+    ...eligibleProducts,
+  ].sort((productA, productB) => {
+    const productANeverPosted =
+      !productA.last_posted_at;
+
+    const productBNeverPosted =
+      !productB.last_posted_at;
+
+    /*
+     * Never-posted products always come first.
+     */
+    if (
+      productANeverPosted &&
+      !productBNeverPosted
+    ) {
+      return -1;
+    }
+
+    if (
+      !productANeverPosted &&
+      productBNeverPosted
+    ) {
+      return 1;
+    }
+
+    const productATimesPosted =
+      Number(productA.times_posted) || 0;
+
+    const productBTimesPosted =
+      Number(productB.times_posted) || 0;
+
+    /*
+     * For never-posted products, prioritize the
+     * lowest posting count.
+     */
+    if (
+      productANeverPosted &&
+      productBNeverPosted
+    ) {
+      if (
+        productATimesPosted !==
+        productBTimesPosted
+      ) {
+        return (
+          productATimesPosted -
+          productBTimesPosted
+        );
+      }
+
+      return String(productA.id).localeCompare(
+        String(productB.id)
+      );
+    }
+
+    const productALastPostedTime =
+      new Date(
+        productA.last_posted_at
+      ).getTime();
+
+    const productBLastPostedTime =
+      new Date(
+        productB.last_posted_at
+      ).getTime();
+
+    /*
+     * Oldest posted product comes first.
+     */
+    if (
+      productALastPostedTime !==
+      productBLastPostedTime
+    ) {
+      return (
+        productALastPostedTime -
+        productBLastPostedTime
+      );
+    }
+
+    /*
+     * If the dates match, use the lowest posting count.
+     */
+    if (
+      productATimesPosted !==
+      productBTimesPosted
+    ) {
+      return (
+        productATimesPosted -
+        productBTimesPosted
+      );
+    }
+
+    return String(productA.id).localeCompare(
+      String(productB.id)
+    );
+  });
+
+  return sortedProducts[0] || null;
+}
+
+/*
+ * Update the product after a successful automation post.
+ */
+export async function markProductAsPosted({
+  productId,
+  userId,
+  postedAt = new Date().toISOString(),
+}) {
+  const product = await getProductById({
+    productId,
+    userId,
+  });
+
+  if (!product) {
+    throw new Error(
+      "Unable to update posting history because the product was not found."
+    );
+  }
+
+  const currentTimesPosted =
+    Number(product.times_posted) || 0;
+
+  const {
+    data: updatedProduct,
+    error,
+  } = await supabase
+    .from("products")
+    .update({
+      times_posted: currentTimesPosted + 1,
+      last_posted_at: postedAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productId)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Unable to update product posting history: ${error.message}`
+    );
+  }
+
+  return updatedProduct;
+}

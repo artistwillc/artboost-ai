@@ -1,0 +1,430 @@
+import express from "express";
+
+import {
+  createOrUpdateAutomation,
+  disableAutomation,
+  getAutomationById,
+} from "../services/automationService.js";
+
+import {
+  getNextAutomationProduct,
+} from "../services/productService.js";
+
+import supabase from "../lib/supabase.js";
+
+const router = express.Router();
+
+/*
+ * GET /automations/store/:storeId
+ *
+ * Loads the automation associated with one connected store.
+ *
+ * Query:
+ * userId
+ */
+router.get(
+  "/store/:storeId",
+  async (req, res) => {
+    try {
+      const { storeId } = req.params;
+      const { userId } = req.query;
+
+      if (!storeId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing storeId.",
+        });
+      }
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing userId.",
+        });
+      }
+
+      const {
+  data: automationRows,
+  error,
+} = await supabase
+  .from("store_automations")
+  .select("*")
+  .eq("user_id", String(userId))
+  .eq("store_id", String(storeId))
+  .order("created_at", {
+    ascending: false,
+  });
+
+if (error) {
+  throw new Error(
+    `Unable to load store automations: ${error.message}`
+  );
+}
+
+const automations = automationRows || [];
+
+return res.json({
+  success: true,
+  total: automations.length,
+  automations,
+});
+      }
+
+      const automation =
+        await getAutomationById({
+          automationId:
+            automationRow.id,
+          userId: String(userId),
+        });
+
+      return res.json({
+        success: true,
+        automation,
+      });
+    } catch (error) {
+      console.error(
+        "Store automation load error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          "Unable to load store automation.",
+        details: error.message,
+      });
+    }
+  }
+);
+
+/*
+ * GET /automations/:automationId
+ *
+ * Loads one automation by its ID.
+ *
+ * Query:
+ * userId
+ */
+router.get(
+  "/:automationId",
+  async (req, res) => {
+    try {
+      const { automationId } =
+        req.params;
+
+      const { userId } = req.query;
+
+      if (!automationId) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Missing automationId.",
+        });
+      }
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing userId.",
+        });
+      }
+
+      const automation =
+        await getAutomationById({
+          automationId:
+            String(automationId),
+          userId: String(userId),
+        });
+
+      if (!automation) {
+        return res.status(404).json({
+          success: false,
+          error:
+            "Automation not found.",
+        });
+      }
+
+      return res.json({
+        success: true,
+        automation,
+      });
+    } catch (error) {
+      console.error(
+        "Automation load error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          "Unable to load automation.",
+        details: error.message,
+      });
+    }
+  }
+);
+
+/*
+ * POST /automations
+ *
+ * Creates or updates one store automation.
+ *
+ * Body:
+ * userId
+ * storeId
+ * storeType
+ * storeName
+ * automationName
+ * enabled
+ * frequency
+ * postingTime
+ * timezone
+ * platforms
+ * selectionMode
+ * repeatDelayDays
+ */
+router.post("/", async (req, res) => {
+  try {
+    const {
+  userId,
+  storeId,
+  storeType,
+  storeName,
+  automationName = "Daily Store Rotation",
+  enabled = false,
+      frequency = "daily",
+      postingTime = "09:00:00",
+      timezone = "America/Chicago",
+      platforms = [],
+      selectionMode =
+        "least_recently_posted",
+      repeatDelayDays = 30,
+    } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing userId.",
+      });
+    }
+
+    if (!storeId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing storeId.",
+      });
+    }
+
+    if (!storeType) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing storeType.",
+      });
+    }
+
+    if (!storeName) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing storeName.",
+      });
+    }
+
+    if (!Array.isArray(platforms)) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Platforms must be an array.",
+      });
+    }
+
+    const automation =
+      await createOrUpdateAutomation({
+        userId: String(userId),
+        storeId: String(storeId),
+        storeType: String(storeType),
+        storeName: String(storeName),
+automationName: String(
+  automationName || "Daily Store Rotation"
+),
+enabled: Boolean(enabled),
+        frequency: String(frequency),
+        postingTime: String(
+          postingTime
+        ),
+        timezone: String(timezone),
+        platforms,
+        selectionMode: String(
+          selectionMode
+        ),
+        repeatDelayDays: Number(
+          repeatDelayDays
+        ),
+      });
+
+    return res.json({
+      success: true,
+      automation,
+    });
+  } catch (error) {
+    console.error(
+      "Automation save error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      error:
+        "Unable to save automation.",
+      details: error.message,
+    });
+  }
+});
+
+/*
+ * POST /automations/preview
+ *
+ * Returns the next eligible product without
+ * changing any posting history.
+ *
+ * Body:
+ * userId
+ * storeId
+ * storeType
+ * storeName
+ * selectionMode
+ * repeatDelayDays
+ */
+router.post(
+  "/preview",
+  async (req, res) => {
+    try {
+      const {
+        userId,
+        storeId,
+        storeType,
+        storeName,
+        selectionMode =
+          "least_recently_posted",
+        repeatDelayDays = 30,
+      } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing userId.",
+        });
+      }
+
+      if (!storeId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing storeId.",
+        });
+      }
+
+      const product =
+        await getNextAutomationProduct({
+          userId: String(userId),
+          storeId: String(storeId),
+          storeType: storeType
+            ? String(storeType)
+            : undefined,
+          storeName: storeName
+            ? String(storeName)
+            : undefined,
+          selectionMode: String(
+            selectionMode
+          ),
+          repeatDelayDays: Number(
+            repeatDelayDays
+          ),
+        });
+
+      return res.json({
+        success: true,
+        product,
+        eligible: Boolean(product),
+      });
+    } catch (error) {
+      console.error(
+        "Automation preview error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          "Unable to preview the next product.",
+        details: error.message,
+      });
+    }
+  }
+);
+
+/*
+ * PATCH /automations/:automationId/disable
+ *
+ * Disables an existing automation.
+ *
+ * Body:
+ * userId
+ * reason
+ */
+router.patch(
+  "/:automationId/disable",
+  async (req, res) => {
+    try {
+      const { automationId } =
+        req.params;
+
+      const {
+        userId,
+        reason = null,
+      } = req.body;
+
+      if (!automationId) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Missing automationId.",
+        });
+      }
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing userId.",
+        });
+      }
+
+      const automation =
+        await disableAutomation({
+          automationId:
+            String(automationId),
+          userId: String(userId),
+          reason: reason
+            ? String(reason)
+            : null,
+        });
+
+      return res.json({
+        success: true,
+        automation,
+      });
+    } catch (error) {
+      console.error(
+        "Automation disable error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          "Unable to disable automation.",
+        details: error.message,
+      });
+    }
+  }
+);
+
+export default router;

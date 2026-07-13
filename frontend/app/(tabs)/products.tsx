@@ -433,7 +433,18 @@ const [stores, setStores] = useState<Store[]>([]);
         styles.storeTab,
         selectedStore === store.storeName && styles.storeTabActive,
       ]}
-      onPress={() => setSelectedStore(store.storeName)}
+      onPress={() =>
+  router.push({
+    pathname: "/store-dashboard" as any,
+    params: {
+      storeId: store.id,
+      storeName: store.storeName,
+      storeType: store.storeType,
+      productCount: String(store.productCount),
+      connected: String(store.connected),
+    },
+  })
+}
     >
       <Text
         numberOfLines={1}
