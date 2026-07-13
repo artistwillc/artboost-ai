@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import productRoutes from "./routes/products.js";
 import storeRoutes from "./routes/stores.js";
+import automationRoutes from "./routes/automations.js";
 import OpenAI from "openai";
 import multer from "multer";
 import Stripe from "stripe";
@@ -546,6 +547,7 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use("/products", productRoutes);
 app.use("/stores", storeRoutes);
+app.use("/automations", automationRoutes);
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
