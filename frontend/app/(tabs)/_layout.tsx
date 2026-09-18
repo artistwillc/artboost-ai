@@ -21,7 +21,7 @@ const mainTabs = [
 
 const moreItems = [
   { title: "Schedule", icon: "calendar", route: "/schedule" },
-  { title: "Analytics", icon: "bar-chart", route: "/analytics" },
+  { title: "Analytics", icon: "bar-chart", route: "/analytics", web: false },
   { title: "Saved Campaigns", icon: "bookmark", route: "/saved" },
   { title: "Brand Kit", icon: "brush", route: "/brand" },
   { title: "Campaign History", icon: "time", route: "/history" },
@@ -91,7 +91,7 @@ function CustomTabBar({ state, navigation }: any) {
           <View style={styles.desktopDivider} />
           <Text style={styles.desktopSection}>WORKSPACE</Text>
 
-          {moreItems.map((item) => (
+          {moreItems.filter((item) => item.web !== false).map((item) => (
             <Pressable key={item.title} style={styles.desktopItem} onPress={() => router.push(item.route as any)}>
               <Ionicons name={item.icon as any} size={19} color="#9ca3af" />
               <Text style={styles.desktopText}>{item.title}</Text>
