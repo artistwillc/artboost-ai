@@ -174,8 +174,17 @@ function CustomTabBar({ state, navigation }: any) {
 }
 
 export default function TabLayout() {
+  const { width } = useWindowDimensions();
+  const desktopWeb = Platform.OS === "web" && width >= 900;
+
   return (
-    <Tabs tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+        tabBarPosition: desktopWeb ? "left" : "bottom",
+      }}
+    >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="saved" />
       <Tabs.Screen name="schedule" />
@@ -189,11 +198,8 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   desktopSidebar: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
     width: 250,
+    height: "100%",
     backgroundColor: "#101010",
     borderRightWidth: 1,
     borderRightColor: "#262626",
