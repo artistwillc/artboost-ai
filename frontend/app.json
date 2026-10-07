@@ -2,7 +2,7 @@
 {
   "expo": {
     "name": "ArtBoost AI",
-    "slug": "artboostai",
+    "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -47,7 +47,8 @@
       }
     },
     "android": {
-      "package": "com.artistwill.artboostai",
+      "package": "com.artboostai.app",
+      "versionCode": 17,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
@@ -69,7 +70,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "c3108d17-a62b-4680-b805-49ace5d2ea43"
+        "projectId": "52871925-f7ec-49ec-a141-d41dd224e930"
       }
     },
     "androidStatusBar": {
