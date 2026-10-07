@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "ArtBoost AI",
@@ -68,7 +69,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "52871925-f7ec-49ec-a141-d41dd224e930"
+        "projectId": "c3108d17-a62b-4680-b805-49ace5d2ea43"
       }
     },
     "androidStatusBar": {
